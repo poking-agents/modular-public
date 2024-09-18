@@ -207,7 +207,7 @@ models_and_comparison_generators = [
     ("gpt-4-0613", "4", generate_comparison_gpt),
     ("gpt-4-turbo-2024-04-09", "4t", generate_comparison_gpt),
     ("gpt-4o-2024-05-13", "4o", generate_comparison_gpt),
-    ("gpt-4o-mini-2024-07183", "4om", generate_comparison_gpt),
+    ("gpt-4o-mini-2024-07-18", "4om", generate_comparison_gpt),
     ("claude-3-opus-20240229", "c3o", generate_comparison_claude_legacy),
     ("claude-3-sonnet-20240229", "c3s", generate_comparison_claude_legacy),
     ("claude-3-haiku-20240229", "c3h", generate_comparison_claude_legacy),
