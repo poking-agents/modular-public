@@ -157,6 +157,7 @@ gpt_models = [
     ("gpt-4-0613", "4"),
     ("gpt-4-turbo-2024-04-09", "4t"),
     ("gpt-4o-2024-05-13", "4o"),
+    ("gpt-4o-mini-2024-07-18", "4om"),
 ]
 for model_pair, n in product(gpt_models, [1, 2, 4, 8, 16, 32, 64]):
     model, desc = model_pair
