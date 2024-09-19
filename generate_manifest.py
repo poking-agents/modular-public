@@ -1,14 +1,12 @@
 import json
 from itertools import product
 
-TOOLKITS = ["_basic", "_basic_vision", "_vision_double_return"]
+TOOLKITS = ["_basic", "_basic_vision", "_basic_scoring", "_vision_double_return"]
 
 PROMPTERS = ["_basic", "_context_and_usage_aware"]
 
 GENERATORS = []
-for model, n in product(
-    ["c3o", "c3s", "c3h"], [1, 2, 4, 8, 16, 32, 64]
-):
+for model, n in product(["c3o", "c3s", "c3h", "c3.5s"], [1, 2, 4, 8, 16, 32, 64]):
     GENERATORS.append(f"_claude_legacy_{n}x{model}")
 for gpt, n in product(["4", "4t", "4o", "4om"], [1, 2, 4, 8, 16, 32, 64]):
     GENERATORS.append(f"_gpt_basic_{n}x{gpt}")
@@ -16,13 +14,15 @@ for gpt, n in product(["4", "4t", "4o", "4om"], [1, 2, 4, 8, 16, 32, 64]):
 DISCRIMINATORS = ["_basic"]
 DISCRIMINATORS += [
     f"_compare_options_{model}"
-    for model in ["4", "4t", "4o", "4om", "c3o", "c3s", "c3h"]
+    for model in ["4", "4t", "4o", "4om", "c3o", "c3s", "c3h", "c3.5s"]
 ]
 DISCRIMINATORS += [
     f"_compare_and_regenerate_{n_rounds}_rounds_gpt_{gpt}"
     for gpt, n_rounds in product(["4", "4t", "4o", "4om"], range(1, 6))
 ]
-DISCRIMINATORS += [f"_assess_and_backtrack_gpt_{gpt}" for gpt in ["4", "4t", "4o", "4om"]]
+DISCRIMINATORS += [
+    f"_assess_and_backtrack_gpt_{gpt}" for gpt in ["4", "4t", "4o", "4om"]
+]
 
 ACTORS = ["_basic", "_prompt_to_search", "_always_save"]
 
@@ -88,6 +88,7 @@ MANIFEST = {
             },
             "token_limit": {"type": "integer"},
             "token_usage": {"type": "integer"},
+            "timeout": {"type": "integer"},
         },
         "additionalProperties": False,
         "required": ["task_string", "nodes", "last_node_id"],
@@ -100,7 +101,15 @@ def generate_manifest():
     for toolkit, prompter, generator, discriminator, actor in product(
         TOOLKITS, PROMPTERS, GENERATORS, DISCRIMINATORS, ACTORS
     ):
-        settings_pack_name = f"{toolkit.replace('_basic', '')}t{prompter.replace('_basic', '')}p{generator.replace('_basic', '')}g{discriminator.replace('_basic', '')}d{actor.replace('_basic', '')}a"
+        settings_pack_name = "".join(
+            [
+                toolkit.replace("_basic", "") + "t",
+                prompter.replace("_basic", "") + "p",
+                generator.replace("_basic", "") + "g",
+                discriminator.replace("_basic", "") + "d",
+                actor.replace("_basic", "") + "a",
+            ]
+        )
         settings_packs[settings_pack_name] = {
             "toolkit": toolkit,
             "prompter": prompter,

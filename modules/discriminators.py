@@ -1,23 +1,20 @@
-import re
 import json
-import asyncio
-from typing import Dict, List, Tuple
-from itertools import product
+import re
 from functools import partial
+from itertools import product
+from typing import Optional
+
+from pyhooks.types import MiddlemanResult, MiddlemanSettings, OpenaiChatMessage
 
 from base import Agent, Message, hooks
 from templates import (
+    assess_and_backtrack_prompt,
     claude_basic_system_prompt,
-    gpt_basic_system_prompt,
-    compare_options_prompt_v1,
     compare_and_regenerate_prompt_v1,
-    assess_and_backtrack_prompt
+    compare_options_prompt_v1,
+    gpt_basic_system_prompt,
 )
-from pyhooks.types import (
-    MiddlemanSettings,
-    MiddlemanResult,
-    OpenaiChatMessage,
-)
+
 
 async def _basic(agent: Agent) -> None:
     node_metadata = {
@@ -27,7 +24,12 @@ async def _basic(agent: Agent) -> None:
     agent.state.next_step["module_type"] = "actor"
 
 
-async def generate_comparison_claude_legacy(agent: Agent, middleman_settings: MiddlemanSettings, options_prompt_template: str, system_prompt: str=claude_basic_system_prompt) -> MiddlemanResult:
+async def generate_comparison_claude_legacy(
+    agent: Agent,
+    middleman_settings: MiddlemanSettings,
+    options_prompt_template: str,
+    system_prompt: str = claude_basic_system_prompt,
+) -> MiddlemanResult:
     wrapped_messages = [
         {
             "role": "system",
@@ -49,18 +51,26 @@ async def generate_comparison_claude_legacy(agent: Agent, middleman_settings: Mi
         elif msg.role == "function":
             role = "user"
             content = f"<{msg.name}-output>{msg.content}</{msg.name}-output>"
-        wrapped_messages.append({
-            "role": role,
-            "content": content,
-        })
+        wrapped_messages.append(
+            {
+                "role": role,
+                "content": content,
+            }
+        )
     formatted_options = ""
     for i, option in enumerate(agent.state.next_step["args"]["options"]):
-        option_string = json.dumps({"content": option.content, "function_call": option.function_call})
+        option_string = json.dumps(
+            {"content": option.content, "function_call": option.function_call}
+        )
         formatted_options += f"\n\nOption {i}:\n{option_string}"
-    wrapped_messages.append({
-        "role": "user",
-        "content": options_prompt_template.replace("{{&options}}", formatted_options),
-    })
+    wrapped_messages.append(
+        {
+            "role": "user",
+            "content": options_prompt_template.replace(
+                "{{&options}}", formatted_options
+            ),
+        }
+    )
     generation = await hooks.generate(
         messages=wrapped_messages,
         settings=middleman_settings,
@@ -68,7 +78,12 @@ async def generate_comparison_claude_legacy(agent: Agent, middleman_settings: Mi
     return generation
 
 
-async def generate_comparison_gpt(agent: Agent, middleman_settings: MiddlemanSettings, options_prompt_template: str, system_prompt: str=gpt_basic_system_prompt) -> MiddlemanResult:
+async def generate_comparison_gpt(
+    agent: Agent,
+    middleman_settings: MiddlemanSettings,
+    options_prompt_template: str,
+    system_prompt: str = gpt_basic_system_prompt,
+) -> MiddlemanResult:
     messages = agent.state.next_step["args"]["messages"]
     options = agent.state.next_step["args"]["options"]
     wrapped_messages = [
@@ -92,12 +107,16 @@ async def generate_comparison_gpt(agent: Agent, middleman_settings: MiddlemanSet
     ]
     formatted_options = ""
     for i, option in enumerate(options):
-        option_string = json.dumps({"content": option.content, "function_call": option.function_call})
+        option_string = json.dumps(
+            {"content": option.content, "function_call": option.function_call}
+        )
         formatted_options += f"\n\nOption {i}:\n{option_string}"
-    wrapped_messages.append(OpenaiChatMessage(
-        role="user",
-        content=options_prompt_template.replace("{{&options}}", formatted_options),
-    ))
+    wrapped_messages.append(
+        OpenaiChatMessage(
+            role="user",
+            content=options_prompt_template.replace("{{&options}}", formatted_options),
+        )
+    )
     generation = await hooks.generate(
         messages=wrapped_messages,
         settings=middleman_settings,
@@ -106,15 +125,25 @@ async def generate_comparison_gpt(agent: Agent, middleman_settings: MiddlemanSet
     return generation
 
 
-async def _compare_options_factory(agent: Agent, middleman_settings: MiddlemanSettings=None, comparison_generator=None) -> None:
+async def _compare_options_factory(
+    agent: Agent,
+    middleman_settings: MiddlemanSettings = None,
+    comparison_generator=None,
+) -> None:
     if middleman_settings is None or comparison_generator is None:
-        raise ValueError("Do not call _compare_options_factory directly. Use a partial application of it instead.")
+        raise ValueError(
+            "Do not call _compare_options_factory directly. Use a partial application of it instead."
+        )
 
     options = agent.state.next_step["args"]["options"]
     choice_is_good = False
     while not choice_is_good:
-        generation = await comparison_generator(agent, middleman_settings, compare_options_prompt_v1)
-        choice = re.search(r"<FINAL CHOICE>\s*\[?\s*(\d+)\s*\]?\s*$", generation.outputs[0].completion)
+        generation = await comparison_generator(
+            agent, middleman_settings, compare_options_prompt_v1
+        )
+        choice = re.search(
+            r"<FINAL CHOICE>\s*\[?\s*(\d+)\s*\]?\s*$", generation.outputs[0].completion
+        )
         if choice is not None:
             choice = int(choice.group(1))
             if 0 <= choice < len(options):
@@ -127,9 +156,15 @@ async def _compare_options_factory(agent: Agent, middleman_settings: MiddlemanSe
     agent.state.next_step["module_type"] = "actor"
 
 
-async def _compare_and_regenerate_gpt_factory(agent: Agent, n_rounds: int=1, middleman_settings: MiddlemanSettings=None) -> None:
+async def _compare_and_regenerate_gpt_factory(
+    agent: Agent,
+    n_rounds: int = 1,
+    middleman_settings: Optional[MiddlemanSettings] = None,
+) -> None:
     if middleman_settings is None:
-        raise ValueError("Do not call _compare_and_regenerate_factory directly. Use a partial application of it instead.")
+        raise ValueError(
+            "Do not call _compare_and_regenerate_factory directly. Use a partial application of it instead."
+        )
 
     middleman_settings_copy = MiddlemanSettings(
         n=(1 if n_rounds < 2 else len(agent.state.next_step["args"]["options"])),
@@ -141,35 +176,56 @@ async def _compare_and_regenerate_gpt_factory(agent: Agent, n_rounds: int=1, mid
     new_options = []
     function_call = None
     while not len(new_options):
-        generations = await comparison_generator(agent, middleman_settings_copy, compare_and_regenerate_prompt_v1)
+        generations = await comparison_generator(
+            agent, middleman_settings_copy, compare_and_regenerate_prompt_v1
+        )
         for generation in generations.outputs:
-            action = re.search(r"<FINAL ACTION>[^\{]*(\{.+\})[^\}]*$", generation.completion, re.DOTALL)
+            action = re.search(
+                r"<FINAL ACTION>[^\{]*(\{.+\})[^\}]*$", generation.completion, re.DOTALL
+            )
             try:
                 action = json.loads(action.group(1))
                 content = "" if "content" not in action else action["content"]
-                function_call = None if "function_call" not in action else action["function_call"]
+                function_call = (
+                    None if "function_call" not in action else action["function_call"]
+                )
                 assert isinstance(function_call, (None.__class__, dict))
-                new_options.append(Message(
-                    role="assistant",
-                    content=content,
-                    function_call=function_call,
-                ))
+                new_options.append(
+                    Message(
+                        role="assistant",
+                        content=content,
+                        function_call=function_call,
+                    )
+                )
             except (json.JSONDecodeError, AttributeError, AssertionError):
                 continue
     if len(new_options) == 1:
         node_metadata = {
-            "d__compare_and_regenerate__original_options": agent.state.next_step["args"]["options"],
-            "g__generation_metadata": agent.state.next_step["args"]["generation_metadata"],
+            "d__compare_and_regenerate__original_options": agent.state.next_step[
+                "args"
+            ]["options"],
+            "g__generation_metadata": agent.state.next_step["args"][
+                "generation_metadata"
+            ],
         }
         agent.append(new_options[0], metadata=node_metadata)
         agent.state.next_step["module_type"] = "actor"
     else:
         agent.state.next_step["args"]["options"] = new_options
-        await _compare_and_regenerate_gpt_factory(agent, n_rounds=n_rounds-1, middleman_settings=middleman_settings)
+        await _compare_and_regenerate_gpt_factory(
+            agent, n_rounds=n_rounds - 1, middleman_settings=middleman_settings
+        )
 
-async def _assess_and_backtrack_gpt_factory(agent: Agent, middleman_settings: MiddlemanSettings=None, comparison_generator=None) -> None:
+
+async def _assess_and_backtrack_gpt_factory(
+    agent: Agent,
+    middleman_settings: MiddlemanSettings = None,
+    comparison_generator=None,
+) -> None:
     if middleman_settings is None:
-        raise ValueError("Do not call _assess_and_backtrack_gpt_factory directly. Use a partial application of it instead.")
+        raise ValueError(
+            "Do not call _assess_and_backtrack_gpt_factory directly. Use a partial application of it instead."
+        )
 
     middleman_settings_copy = MiddlemanSettings(
         n=1,
@@ -182,26 +238,35 @@ async def _assess_and_backtrack_gpt_factory(agent: Agent, middleman_settings: Mi
     action = agent.state.next_step["args"]["options"][0]
     approved = None
     while approved is None:
-        generations = await comparison_generator(agent, middleman_settings_copy, assess_and_backtrack_prompt)
+        generations = await comparison_generator(
+            agent, middleman_settings_copy, assess_and_backtrack_prompt
+        )
         completion = generations.outputs[0].completion
         print(completion)
 
         if "APPROVE" in completion:
             approved = True
             node_metadata = {
-                "d__compare_and_regenerate__original_options": agent.state.next_step["args"]["options"],
-                "g__generation_metadata": agent.state.next_step["args"]["generation_metadata"],
+                "d__compare_and_regenerate__original_options": agent.state.next_step[
+                    "args"
+                ]["options"],
+                "g__generation_metadata": agent.state.next_step["args"][
+                    "generation_metadata"
+                ],
             }
             agent.append(action, metadata=node_metadata)
             agent.state.next_step["module_type"] = "actor"
         elif "REJECT" in completion:
             approved = False
-            agent.append(Message(
-                role="user",
-                content=f"The following action is not on the right track: {action.content}\n\nConsider a different approach.",
-                function_call=None,
-            ))
+            agent.append(
+                Message(
+                    role="user",
+                    content=f"The following action is not on the right track: {action.content}\n\nConsider a different approach.",
+                    function_call=None,
+                )
+            )
             agent.state.next_step["module_type"] = "generator"
+
 
 models_and_comparison_generators = [
     ("gpt-4-0613", "4", generate_comparison_gpt),
@@ -211,31 +276,34 @@ models_and_comparison_generators = [
     ("claude-3-opus-20240229", "c3o", generate_comparison_claude_legacy),
     ("claude-3-sonnet-20240229", "c3s", generate_comparison_claude_legacy),
     ("claude-3-haiku-20240229", "c3h", generate_comparison_claude_legacy),
+    ("claude-3-5-sonnet-20240620", "c3.5s", generate_comparison_claude_legacy),
 ]
 for model, desc, comparison_generator in models_and_comparison_generators:
-    globals()[f"_compare_options_{desc}"] = partial(_compare_options_factory, middleman_settings=MiddlemanSettings(
-        n=1,
-        model=model,
-        temp=1,
-        max_tokens=3600,
-        stop=["</FINAL CHOICE>"]
-    ), comparison_generator=comparison_generator)
+    globals()[f"_compare_options_{desc}"] = partial(
+        _compare_options_factory,
+        middleman_settings=MiddlemanSettings(
+            n=1, model=model, temp=1, max_tokens=3600, stop=["</FINAL CHOICE>"]
+        ),
+        comparison_generator=comparison_generator,
+    )
 
 # TODO: Make compatible with claude_legacy format (currently the resulting claude_legacy compatible functions are not intended to work)
-for (model, desc, _), n_rounds in product(models_and_comparison_generators, range(1, 6)):
-    globals()[f"_compare_and_regenerate_{n_rounds}_rounds_gpt_{desc}"] = partial(_compare_and_regenerate_gpt_factory, n_rounds=n_rounds, middleman_settings=MiddlemanSettings(
-        n=1,
-        model=model,
-        temp=1,
-        max_tokens=4096,
-        stop=["</FINAL ACTION>"]
-    ))
+for (model, desc, _), n_rounds in product(
+    models_and_comparison_generators, range(1, 6)
+):
+    globals()[f"_compare_and_regenerate_{n_rounds}_rounds_gpt_{desc}"] = partial(
+        _compare_and_regenerate_gpt_factory,
+        n_rounds=n_rounds,
+        middleman_settings=MiddlemanSettings(
+            n=1, model=model, temp=1, max_tokens=4096, stop=["</FINAL ACTION>"]
+        ),
+    )
 
-for (model, desc, comparison_generator) in models_and_comparison_generators:
-    globals()[f"_assess_and_backtrack_gpt_{desc}"] = partial(_assess_and_backtrack_gpt_factory, middleman_settings=MiddlemanSettings(
-        n=1,
-        model=model,
-        temp=1,
-        max_tokens=4096,
-        stop=[]
-    ), comparison_generator=comparison_generator)
+for model, desc, comparison_generator in models_and_comparison_generators:
+    globals()[f"_assess_and_backtrack_gpt_{desc}"] = partial(
+        _assess_and_backtrack_gpt_factory,
+        middleman_settings=MiddlemanSettings(
+            n=1, model=model, temp=1, max_tokens=4096, stop=[]
+        ),
+        comparison_generator=comparison_generator,
+    )

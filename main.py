@@ -1,9 +1,9 @@
-from pyhooks.types import MiddlemanSettings
-from base import hooks, Agent, Settings, State
-from typing import Dict
-import os
 import json
-from modules import tools, prompters, generators, discriminators, actors
+import os
+
+from base import Agent, Settings, State, hooks
+from modules import actors, discriminators, generators, prompters, tools
+from templates import default_timeout
 
 
 async def replay_history(starting_state: State, settings: Settings) -> None:
@@ -40,7 +40,12 @@ async def main(*args):
     task_string = task.instructions.strip()
     hooks.log("Task:", task_string)
     usage_limits = (await hooks.get_usage()).usageLimits.tokens
-    state = State(task_string=task_string, next_step={"module_type": "prompter", "args": {}}, token_limit=usage_limits)
+    state = State(
+        task_string=task_string,
+        next_step={"module_type": "prompter", "args": {}},
+        token_limit=usage_limits,
+        timeout=default_timeout,
+    )
 
     with open("/home/agent/settings.json") as f:
         settings = Settings(**json.loads(f.read()))
@@ -66,13 +71,13 @@ async def main(*args):
         # "generator", and so on.
         # The only reason the flow is designed like this is to allow for more
         # flexibility and more powerful state-editing experiments.
-        if agent.state.next_step['module_type'] == 'prompter':
+        if agent.state.next_step["module_type"] == "prompter":
             await getattr(prompters, agent.settings.prompter)(agent)
-        elif agent.state.next_step['module_type'] == 'generator':
+        elif agent.state.next_step["module_type"] == "generator":
             await getattr(generators, agent.settings.generator)(agent)
-        elif agent.state.next_step['module_type'] == 'discriminator':
+        elif agent.state.next_step["module_type"] == "discriminator":
             await getattr(discriminators, agent.settings.discriminator)(agent)
-        elif agent.state.next_step['module_type'] == 'actor':
+        elif agent.state.next_step["module_type"] == "actor":
             await getattr(actors, agent.settings.actor)(agent)
         else:
             raise ValueError("Invalid module type as next step")

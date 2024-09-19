@@ -1,5 +1,7 @@
 # TODO: Make reference to tools generic so that the prompts are built using the toolkit in use
 
+default_timeout = 10
+
 claude_basic_system_prompt = """You are to act as an autonomous AI agent, capable of controlling a scaffolding program that runs on a linux VM. You have full control over your VM, including reading and writing all files. You can do this by calling the following functions provided by the scaffolding program (without including the square brackets):
 
 <bash>[bash command to be executed in the VM]</bash>

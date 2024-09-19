@@ -1,22 +1,20 @@
 from __future__ import annotations
-from typing import List, Dict, Set
+
 import json
+from typing import Dict, List, Literal, Optional
 
-import asyncio
-from pydantic import BaseModel
-
-from pyhooks import Hooks, Actions
-from pyhooks.types import MiddlemanSettings
+from pydantic import BaseModel, Field
+from pyhooks import Actions, Hooks
 
 hooks = Hooks()
 actions = Actions()
 
 
 class Message(BaseModel):
-    role: str
+    role: Literal["assistant", "function", "system", "tool", "user"]
     content: str
-    function_call: Dict = None
-    name: str = None
+    function_call: Optional[Dict] = None
+    name: Optional[str] = None
 
 
 class Node(BaseModel):
@@ -24,7 +22,7 @@ class Node(BaseModel):
     parent: int
     children: List[int]
     message: Message
-    metadata: Dict = {}
+    metadata: Dict = Field(default_factory=dict)
 
     def get_path(self, nodes: List[Node]) -> List[int]:
         path = [self.node_id]
@@ -35,17 +33,19 @@ class Node(BaseModel):
 
 class State(BaseModel):
     task_string: str
-    nodes: List[Node] = []
+    nodes: List[Node] = Field(default_factory=list)
     last_node_id: int = -1
-    next_step: Dict = {}
+    last_rating_options: Optional[List] = None
+    next_step: Dict = Field(default_factory=dict)
     token_limit: int = 500000
     token_usage: int = 0
-    submissions: List[str] = []
+    timeout: int = 600
+    submissions: List[str] = Field(default_factory=list)
 
     def generate_node(
         self,
         message: Message,
-        parent: int = None,
+        parent: Optional[int] = None,
         children: List[int] = [],
         metadata: Dict = {},
     ):
@@ -64,7 +64,7 @@ class State(BaseModel):
         self.nodes.append(new_node)
         return new_node
 
-    def get_path(self, node_id: int = None) -> List[int]:
+    def get_path(self, node_id: Optional[int] = None) -> List[int]:
         if not self.nodes:
             return []
         if node_id is None:
@@ -80,6 +80,49 @@ class Settings(BaseModel):
     actor: str
 
 
+okabe_ito = {
+    "black": "#000000",
+    "orange": "#E69F00",
+    "light_blue": "#56B4E9",
+    "green": "#009E73",
+    "yellow": "#F0E442",
+    "blue": "#0072B2",
+    "red": "#D55E00",
+    "purple": "#CC79A7",
+}
+
+
+def lighten_color(hex_color, amount=0.8):
+    hex_color = hex_color.strip("#")
+    rgb = [int(hex_color[i : i + 2], 16) for i in (0, 2, 4)]
+    new_rgb = [int((255 - val) * amount + val) for val in rgb]
+    return "#" + "".join(f"{val:02x}" for val in new_rgb)
+
+
+def style(step_kind: str | None) -> dict:
+    if step_kind == "bash":
+        # if action.observation.status is not None and action.observation.status != 0:
+        #     color = okabe_ito["red"]
+        # else:
+        color = okabe_ito["orange"]
+    elif step_kind == "python":
+        color = okabe_ito["light_blue"]
+    elif step_kind == "note":
+        color = okabe_ito["green"]
+    elif step_kind == "observation":
+        color = okabe_ito["yellow"]
+    else:
+        color = "#ffffff"
+
+    lightened = lighten_color(color, 0.8)
+    return {
+        "style": {
+            "background-color": lightened,
+            "border": f"2px solid {color}",
+        }
+    }
+
+
 class Agent(BaseModel):
     state: State
     settings: Settings
@@ -91,7 +134,7 @@ class Agent(BaseModel):
     def append(
         self,
         message: Message,
-        parent: int = None,
+        parent: Optional[int] = None,
         children: List[int] = [],
         metadata: Dict = {},
     ):
@@ -108,12 +151,14 @@ class Agent(BaseModel):
         self.state.generate_node(message, parent, children, metadata)
 
     def log(self, message: Message):
+        step_kind = None
         if message.role == "tool":
             hooks.log(f"output:\n```\n{message.content}\n```")
         elif message.role == "assistant":
             message_content = message.content
             if message.function_call is not None:
+                step_kind = message.function_call["name"]
                 message_content += f"\n\n{message.function_call['name']}:\n{message.function_call['arguments']}"
-            hooks.log(message_content)
+            hooks.log_with_attributes(style(step_kind), message_content)
         else:
-            hooks.log(message.content)
+            hooks.log_with_attributes(style("observation"), message.content)
