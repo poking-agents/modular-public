@@ -8,6 +8,7 @@ from pyhooks.types import MiddlemanSettings, OpenaiChatMessage
 from base import State, actions, hooks
 from templates import default_timeout
 
+
 async def run_python(_state: State, code: Optional[str] = None) -> str:
     timeout = _state.timeout
     output = await actions.run_python(code, timeout=timeout)
