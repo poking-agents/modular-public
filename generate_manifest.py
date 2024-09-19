@@ -1,7 +1,7 @@
 import json
 from itertools import product
 
-TOOLKITS = ["_basic", "_basic_vision", "_basic_scoring", "_vision_double_return"]
+TOOLKITS = ["_basic", "_basic_vision", "_vision_double_return"]
 
 PROMPTERS = ["_basic", "_context_and_usage_aware"]
 

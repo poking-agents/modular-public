@@ -6,7 +6,7 @@ from typing import Optional
 from pyhooks.types import MiddlemanSettings, OpenaiChatMessage
 
 from base import State, actions, hooks
-
+from templates import default_timeout
 
 async def run_python(_state: State, code: Optional[str] = None) -> str:
     timeout = _state.timeout
@@ -274,26 +274,22 @@ describe_image_object = {
     },
 }
 
+# These tools can be added to any toolkit to enable mid-run scoring.
+scoring_tools = {
+    "score": score_fn_object,
+    "score_log": score_log_fn_object,
+}
+
 _basic = {
     "python": run_python_object,
     "bash": run_bash_state_object,
     "submit": return_fn_object,
+    "timeout": set_timeout_object,
 }
 
 _basic_vision = {"describeImage": describe_image_object, **_basic}
 
 _vision_double_return = {
-    "describeImage": describe_image_object,
-    "bash": run_bash_state_object,
-    "python": run_python_object,
+    **_basic_vision,
     "submit": double_return_fn_object,
-}
-
-_basic_scoring = {
-    "python": run_python_object,
-    "bash": run_bash_state_object,
-    "timeout": set_timeout_object,
-    "score": score_fn_object,
-    "score_log": score_log_fn_object,
-    "submit": return_fn_object,
 }

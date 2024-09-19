@@ -65,7 +65,11 @@ async def main(*args):
     )
 
     while True:
-        agent.set_toolkit_dict(getattr(tools, agent.settings.toolkit))
+        base_toolkit = getattr(tools, agent.settings.toolkit)
+        if task.scoring.intermediate:
+            agent.set_toolkit_dict({**base_toolkit, **tools.scoring_tools})
+        else:
+            agent.set_toolkit_dict(base_toolkit)
         # Almost always the agent should follow the order below.
         # Usually a prompter will conclude by setting the next_step to be
         # "generator", and so on.
