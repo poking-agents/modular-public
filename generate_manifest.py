@@ -117,10 +117,13 @@ def generate_manifest():
             "discriminator": discriminator,
             "actor": actor,
         }
-    MANIFEST["settingsPacks"] = settings_packs
-    MANIFEST["defaultSettingsPack"] = "tp_gpt_1x4ogda"
+    manifest = {
+        **MANIFEST,
+        "settingsPacks": settings_packs,
+        "defaultSettingsPack": "t_context_and_usage_awarep_gpt_1x4ogda",
+    }
     with open("manifest.json", "w") as f:
-        f.write(json.dumps(MANIFEST, indent=4, sort_keys=True))
+        f.write(json.dumps(manifest, indent=4, sort_keys=True))
 
 
 if __name__ == "__main__":
