@@ -1,5 +1,7 @@
 import json
 import os
+import sys
+from typing import Any
 
 from base import Agent, Settings, State, hooks
 from modules import actors, discriminators, generators, prompters, tools
@@ -33,13 +35,87 @@ async def replay_history(starting_state: State, settings: Settings) -> None:
     hooks.log("UI Message: Replay finished")
 
 
+def get_json_size_in_mb(json_obj: Any) -> float:
+    json_str = json.dumps(json_obj)
+    size_in_bytes = sys.getsizeof(json_str)
+    size_in_mb = size_in_bytes / (1024 * 1024)
+    return size_in_mb
+
+
+def trim_state(
+    state: dict,
+    limit: float = 75.0,
+    content_cutoff: int = 4096,
+) -> dict:
+    """
+    Trims the state to stay within the platform limits, for hooks.save_state.
+
+    Parameters:
+        state: dict, The state to trim.
+        limit: float, The maximum size for the trimmed state. Vivaria supports up to 100MB,
+            so we're being conservative and defaulting to 75MB.
+        content_cutoff: int, The number of characters to maintain in messages.
+    """
+    # TODOs:
+    # Ensure that the content_cutoff stays above max_tokens
+    # Preferentially trim tool outputs before actions
+    # Consider making a mutating version of this function, to prevent agent out-of-memory errors
+
+    state_copy = json.loads(
+        json.dumps(state)
+    )  # Deep copy of state to avoid direct mutation issues
+    total_size = get_json_size_in_mb(state_copy)
+
+    if total_size < limit:
+        return state_copy
+
+    print(
+        f"State size is {total_size:.2f}MB, which is above the limit of {limit:.2f}MB."
+    )
+    # Trimming content in nodes' messages
+    for node in state_copy["nodes"]:
+        if (
+            "content" in node["message"]
+            and len(node["message"]["content"]) > content_cutoff
+        ):
+            old_content = node["message"]["content"]
+            new_content = (
+                old_content[:content_cutoff]
+                + f"\n[Note: Content trimmed to {content_cutoff} characters]"
+            )
+            node["message"]["content"] = new_content
+            total_size = get_json_size_in_mb(state_copy)
+            if total_size < limit:
+                break
+
+    # Trimming content within messages in next_step args if necessary
+    next_step = state_copy["next_step"]
+    if "args" in next_step and "messages" in next_step["args"]:
+        for message in next_step["args"]["messages"]:
+            if "content" in message and len(message["content"]) > content_cutoff:
+                old_content = message["content"]
+                new_content = (
+                    old_content[:content_cutoff]
+                    + f"\n[Note: Content trimmed to {content_cutoff} characters]"
+                )
+                message["content"] = new_content
+                total_size = get_json_size_in_mb(state_copy)
+                if total_size < limit:
+                    break
+
+    print(f"State size is {total_size}MB after trimming.")
+    return state_copy
+
+
 async def main(*args):
     global agent
     print("STARTING AGENT")
     task = await hooks.getTask()
     task_string = task.instructions.strip()
     hooks.log("Task:", task_string)
-    usage_limits = (await hooks.get_usage()).usageLimits.tokens
+    usage_info = await hooks.get_usage()
+    usage_limits = usage_info.usageLimits.tokens
+
     state = State(
         task_string=task_string,
         next_step={"module_type": "prompter", "args": {}},
@@ -51,12 +127,11 @@ async def main(*args):
         settings = Settings(**json.loads(f.read()))
 
     if os.environ.get("STARTING_STATE"):
-        state = State(**json.loads(os.environ["STARTING_STATE"]))
+        state = State.parse_raw(os.environ["STARTING_STATE"])
         await replay_history(state, settings)
     elif os.environ.get("STARTING_STATE_PATH"):
-        with open(os.environ["STARTING_STATE_PATH"]) as f:
-            state = State(**json.load(f))
-            await replay_history(state, settings)
+        state = State.parse_file(os.environ["STARTING_STATE_PATH"])
+        await replay_history(state, settings)
 
     agent = Agent(
         state=state,
@@ -87,7 +162,8 @@ async def main(*args):
         usage_info = await hooks.get_usage()
         agent.state.token_usage = usage_info.usage.tokens
         agent.state.token_limit = usage_info.usageLimits.tokens
-        hooks.save_state(agent.state.dict())
+        hooks.save_state(trim_state(agent.state.dict()))
+        await agent.autosubmit()
 
 
 if __name__ == "__main__":

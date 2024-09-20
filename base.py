@@ -31,6 +31,30 @@ class Node(BaseModel):
         return path[::-1]
 
 
+def is_dict_exact_match(obj: dict, model: BaseModel) -> bool:
+    model_fields = set(model.__fields__.keys())
+    obj_keys = set(obj.keys())
+    return obj_keys.issubset(model_fields) and all(
+        field in obj_keys
+        for field in model_fields
+        if model.__fields__[field].default is None
+    )
+
+
+def convert_to_custom_type(obj):
+    if isinstance(obj, dict):
+        if is_dict_exact_match(obj, Node):
+            return Node(**obj)
+        elif is_dict_exact_match(obj, Message):
+            return Message(**obj)
+        else:
+            return {k: convert_to_custom_type(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_to_custom_type(item) for item in obj]
+    else:
+        return obj
+
+
 class State(BaseModel):
     task_string: str
     nodes: List[Node] = Field(default_factory=list)
@@ -41,6 +65,19 @@ class State(BaseModel):
     token_usage: int = 0
     timeout: int = 600
     submissions: List[str] = Field(default_factory=list)
+
+    class Config:
+        json_encoders = {Node: lambda v: v.dict(), Message: lambda v: v.dict()}
+
+    @classmethod
+    def parse_obj(cls, obj):
+        if "next_step" in obj:
+            obj["next_step"] = convert_to_custom_type(obj["next_step"])
+        if "extra" in obj:
+            obj["extra"] = convert_to_custom_type(obj["extra"])
+        if "nodes" in obj:
+            obj["nodes"] = convert_to_custom_type(obj["nodes"])
+        return super().parse_obj(obj)
 
     def generate_node(
         self,

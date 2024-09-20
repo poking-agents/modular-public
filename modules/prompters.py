@@ -89,16 +89,20 @@ def trim_message_list(messages: List[Message], target_tok_length: int) -> List[M
     """
     enc = tiktoken.get_encoding("cl100k_base")
     tokens_to_use = target_tok_length - len(
-        enc.encode(notice_retroactively_trimmed_prompt)
+        enc.encode(notice_retroactively_trimmed_prompt, disallowed_special=())
     )
     for msg in messages[:4]:
-        tokens_to_use -= len(enc.encode(msg.content))
-        tokens_to_use -= len(enc.encode(json.dumps(msg.function_call)))
+        tokens_to_use -= len(enc.encode(msg.content, disallowed_special=()))
+        tokens_to_use -= len(
+            enc.encode(json.dumps(msg.function_call), disallowed_special=())
+        )
 
     tail_messages_to_use = []
     for msg in messages[4:][::-1]:
-        tokens_to_use -= len(enc.encode(msg.content))
-        tokens_to_use -= len(enc.encode(json.dumps(msg.function_call)))
+        tokens_to_use -= len(enc.encode(msg.content, disallowed_special=()))
+        tokens_to_use -= len(
+            enc.encode(json.dumps(msg.function_call), disallowed_special=())
+        )
         if tokens_to_use < 0:
             break
         tail_messages_to_use.append(msg)
