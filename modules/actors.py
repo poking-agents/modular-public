@@ -10,48 +10,70 @@ from templates import prompt_to_search, reject_arguments_prompt, reject_command_
 
 async def get_result_message_simple(agent: Agent) -> Optional[Message]:
     last_node = agent.state.nodes[agent.state.last_node_id]
-    if last_node.message.function_call:
-        tool_name = last_node.message.function_call["name"]
-        tool_args = last_node.message.function_call["arguments"]
-        output = ""
-        if tool_name in agent.toolkit_dict:
-            try:  # parse arguments as JSON to be unpacked on function call
-                json_args = json.loads(tool_args)
-                if isinstance(json_args, int):
-                    # we probably want to treat this as in the case below: as the single argument
-                    raise TypeError
-                output = await agent.toolkit_dict[tool_name]["function"](
-                    agent.state, **json_args
-                )
-            except (json.JSONDecodeError, TypeError):
-                try:  # assume there is only one required argument, and it's the passed string
-                    required_args = agent.toolkit_dict[tool_name]["parameters"][
-                        "required"
-                    ]
-                    if len(required_args) != 1:
-                        raise TypeError
-                    tool_args = {required_args[0]: tool_args}
-                    output = await agent.toolkit_dict[tool_name]["function"](
-                        agent.state, **tool_args
-                    )
-                except TypeError:  # tell agent the command failed
-                    return Message(
-                        role="user",
-                        content=reject_arguments_prompt,
-                        function_call=None,
-                    )
-            return Message(
-                role="function",
-                name=tool_name,
-                content=output,
-                function_call=None,
-            )
-        else:
+    if not last_node.message.function_call:
+        return None
+
+    tool_name = last_node.message.function_call["name"]
+    output = ""
+    if tool_name not in agent.toolkit_dict:
+        return Message(
+            role="user",
+            content=reject_command_prompt,
+            function_call=None,
+        )
+
+    tool_info = agent.toolkit_dict[tool_name]
+    tool_fn = tool_info["function"]
+    tool_params = tool_info["parameters"]
+    agent_args = last_node.message.function_call["arguments"]
+    if not tool_params:
+        if agent_args:
             return Message(
                 role="user",
-                content=reject_command_prompt,
+                content=reject_arguments_prompt,
                 function_call=None,
             )
+        return Message(
+            role="function",
+            name=tool_name,
+            content=await tool_fn(agent.state),
+            function_call=None,
+        )
+
+    try:
+        # parse arguments as JSON to be unpacked on function call
+        agent_args = json.loads(agent_args)
+    except json.JSONDecodeError:
+        pass
+
+    required_args = tool_params.get("required", [])
+    if isinstance(agent_args, dict):
+        try:
+            output = await tool_fn(agent.state, **agent_args)
+        except TypeError:
+            return Message(
+                role="user",
+                content=reject_arguments_prompt,
+                function_call=None,
+            )
+    elif len(required_args) != 1:
+        # tell agent the command failed
+        return Message(
+            role="user",
+            content=reject_arguments_prompt,
+            function_call=None,
+        )
+    else:
+        # assume there is only one required argument, and it's the passed string
+        agent_args = {required_args[0]: agent_args}
+        output = await tool_fn(agent.state, **agent_args)
+
+    return Message(
+        role="function",
+        name=tool_name,
+        content=output,
+        function_call=None,
+    )
 
 
 async def _basic(agent: Agent) -> None:

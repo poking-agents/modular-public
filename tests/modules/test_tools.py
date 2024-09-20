@@ -1,11 +1,12 @@
+from __future__ import annotations
+
 import datetime
 import json
 import random
+from typing import TYPE_CHECKING
 
-import pyfakefs
 import pyhooks
 import pytest
-import pytest_mock
 
 import base
 import modules.actors as actors
@@ -14,9 +15,13 @@ import modules.prompters as prompters
 import modules.tools as tools
 import templates
 
+if TYPE_CHECKING:
+    from pyfakefs.fake_filesystem import FakeFilesystem
+    from pytest_mock import MockerFixture
+
 
 @pytest.mark.asyncio
-async def test_score_fn(mocker: pytest_mock.MockerFixture):
+async def test_score_fn(mocker: MockerFixture):
     expected_output = pyhooks.types.ScoreResult(
         status="scoringSucceeded",
         score=0.75,
@@ -47,12 +52,13 @@ async def test_score_fn(mocker: pytest_mock.MockerFixture):
     ],
 )
 async def test_score_feedback(
-    fs: pyfakefs.fake_filesystem.FakeFilesystem,
-    mocker: pytest_mock.MockerFixture,
+    fs: FakeFilesystem,
+    mocker: MockerFixture,
     actor: str,
     expected_output_file: str | None,
 ):
     random.seed(0)
+    fs.create_dir("/home/agent")
 
     score_result = pyhooks.types.ScoreResult(
         status="scoringSucceeded",
@@ -96,10 +102,10 @@ async def test_score_feedback(
             discriminator="_basic",
             generator="_claude_legacy_1xc3.5s",
             prompter="_basic",
-            toolkit="_basic_aird",
+            toolkit="_basic",
             autosubmit=False,
         ),
-        toolkit_dict=tools._basic_aird,
+        toolkit_dict={**tools._basic, **tools.scoring_tools},
     )
     agent.append(
         base.Message(
@@ -177,7 +183,7 @@ async def test_score_feedback(
 
 
 @pytest.mark.asyncio
-async def test_score_log_fn(mocker: pytest_mock.MockerFixture):
+async def test_score_log_fn(mocker: MockerFixture):
     expected_output = [
         pyhooks.types.ScoreLogEntry(
             score=0.75,
