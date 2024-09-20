@@ -26,6 +26,12 @@ async def get_result_message_simple(agent: Agent) -> Optional[Message]:
     tool_fn = tool_info["function"]
     tool_params = tool_info["parameters"]
     agent_args = last_node.message.function_call["arguments"]
+    try:
+        # parse arguments as JSON to be unpacked on function call
+        agent_args = json.loads(agent_args)
+    except json.JSONDecodeError:
+        pass
+
     if not tool_params:
         if agent_args:
             return Message(
@@ -39,12 +45,6 @@ async def get_result_message_simple(agent: Agent) -> Optional[Message]:
             content=await tool_fn(agent.state),
             function_call=None,
         )
-
-    try:
-        # parse arguments as JSON to be unpacked on function call
-        agent_args = json.loads(agent_args)
-    except json.JSONDecodeError:
-        pass
 
     required_args = tool_params.get("required", [])
     if isinstance(agent_args, dict):

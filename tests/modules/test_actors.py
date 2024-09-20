@@ -40,6 +40,16 @@ def fixture_tool_object(request: pytest.FixtureRequest):
         ),
         (
             TOOL_OBJECT_NO_ARGS,
+            {"name": "score", "arguments": "{}"},
+            base.Message(
+                role="function",
+                name="score",
+                content='{"score": 1}',
+                function_call=None,
+            ),
+        ),
+        (
+            TOOL_OBJECT_NO_ARGS,
             {"name": "score", "arguments": "Extra stuff"},
             RESPONSE_REJECT := base.Message(
                 role="user",
