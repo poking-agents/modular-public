@@ -8,20 +8,20 @@ PROMPTERS = ["_basic", "_context_and_usage_aware"]
 GENERATORS = []
 for model, n in product(["c3o", "c3s", "c3h", "c3.5s"], [1, 2, 4, 8, 16, 32, 64]):
     GENERATORS.append(f"_claude_legacy_{n}x{model}")
-for gpt, n in product(["4", "4t", "4o", "4om"], [1, 2, 4, 8, 16, 32, 64]):
+for gpt, n in product(["4", "4t", "4o", "4om", "o1p", "o1m"], [1, 2, 4, 8, 16, 32, 64]):
     GENERATORS.append(f"_gpt_basic_{n}x{gpt}")
 
 DISCRIMINATORS = ["_basic"]
 DISCRIMINATORS += [
     f"_compare_options_{model}"
-    for model in ["4", "4t", "4o", "4om", "c3o", "c3s", "c3h", "c3.5s"]
+    for model in ["4", "4t", "4o", "4om", "o1p", "o1m", "c3o", "c3s", "c3h", "c3.5s"]
 ]
 DISCRIMINATORS += [
     f"_compare_and_regenerate_{n_rounds}_rounds_gpt_{gpt}"
-    for gpt, n_rounds in product(["4", "4t", "4o", "4om"], range(1, 6))
+    for gpt, n_rounds in product(["4", "4t", "4o", "4om", "o1p", "o1m"], range(1, 6))
 ]
 DISCRIMINATORS += [
-    f"_assess_and_backtrack_gpt_{gpt}" for gpt in ["4", "4t", "4o", "4om"]
+    f"_assess_and_backtrack_gpt_{gpt}" for gpt in ["4", "4t", "4o", "4om", "o1p", "o1m"]
 ]
 
 ACTORS = ["_basic", "_prompt_to_search", "_always_save"]
