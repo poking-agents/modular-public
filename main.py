@@ -162,6 +162,8 @@ async def main(*args):
         usage_info = await hooks.get_usage()
         agent.state.token_usage = usage_info.usage.tokens
         agent.state.token_limit = usage_info.usageLimits.tokens
+        agent.state.time_usage = usage_info.usage.total_seconds
+        agent.state.time_limit = usage_info.usageLimits.total_seconds
         hooks.save_state(trim_state(agent.state.dict()))
         await agent.autosubmit()
 

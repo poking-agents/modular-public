@@ -88,10 +88,57 @@ MANIFEST = {
             },
             "token_limit": {"type": "integer"},
             "token_usage": {"type": "integer"},
+            "time_limit": {"type": "integer"},
+            "time_usage": {"type": "integer"},
             "timeout": {"type": "integer"},
+            "last_rating_options": {
+                "oneOf": [
+                    {
+                        "type": "array",
+                        "items": {"$ref": "#/$defs/ratingOption"},
+                        "title": "Rating options",
+                    },
+                    {
+                        "type": "null",
+                        "title": "null",
+                    },
+                ],
+                "default": "null",
+            },
         },
         "additionalProperties": False,
         "required": ["task_string", "nodes", "last_node_id"],
+        "$defs": {
+            "ratingOption": {
+                "type": "object",
+                "title": "Rating option",
+                "properties": {
+                    "action": {"type": "string"},
+                    "description": {
+                        "type": ["string", "null"],
+                        "default": None,
+                    },
+                    "fixedRating": {
+                        "type": ["number", "null"],
+                        "default": None,
+                    },
+                    "userId": {
+                        "type": ["string", "null"],
+                        "default": None,
+                    },
+                    "editOfOption": {
+                        "type": ["integer", "null"],
+                        "default": None,
+                    },
+                    "duplicates": {
+                        "type": ["integer", "null"],
+                        "default": "null",
+                    },
+                },
+                "additionalProperties": False,
+                "required": ["action"],
+            },
+        },
     },
 }
 

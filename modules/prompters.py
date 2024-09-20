@@ -154,19 +154,31 @@ async def _context_and_usage_aware(agent: Agent) -> None:
     node_ids = agent.state.get_path()
     messages = []
     token_usage_fraction = agent.state.token_usage / agent.state.token_limit
+    time_usage_fraction = agent.state.time_usage / agent.state.time_limit
     for node_id in node_ids:
         messages.append(
             _get_trimmed_message(agent.state.nodes[node_id], token_usage_fraction)
         )
-    token_usage_message = f"So far in this attempt at the task, you have used {agent.state.token_usage} tokens, out of the total limit of {agent.state.token_limit} tokens."
-    if token_usage_fraction > (9 / 10):
-        token_usage_message += " You should submit a final answer soon."
-    elif token_usage_fraction > (3 / 4):
-        token_usage_message += " You should attempt to reach a final answer soon."
+
+    if token_usage_fraction > time_usage_fraction:
+        usage_fraction = token_usage_fraction
+        usage_type = "tokens"
+        usage_limit = agent.state.token_limit
+    else:
+        usage_fraction = time_usage_fraction
+        usage_type = "time"
+        usage_limit = agent.state.time_limit
+
+    usage_message = f"So far in this attempt at the task, you have used {usage_fraction} {usage_type}, out of the total limit of {usage_limit}."
+    if usage_fraction > (9 / 10):
+        usage_message += " You should submit a final answer soon."
+    elif usage_fraction > (3 / 4):
+        usage_message += " You should attempt to reach a final answer soon."
+
     messages.append(
         Message(
             role="user",
-            content=token_usage_message,
+            content=usage_message,
             name=None,
             function_call=None,
         )

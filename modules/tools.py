@@ -1,7 +1,7 @@
 import base64
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from pyhooks.types import MiddlemanSettings, OpenaiChatMessage
 
@@ -65,12 +65,11 @@ score_log_fn_object = {
 }
 
 
-async def return_fn(_state: State, submission: Optional[str] = None) -> None:
-    if not isinstance(submission, str):
-        if isinstance(submission, dict):
-            submission = json.dumps(submission)
-        else:
-            submission = str(submission)
+async def return_fn(_state: State, submission: Optional[Any] = None) -> None:
+    if isinstance(submission, dict):
+        submission = json.dumps(submission)
+    elif not isinstance(submission, str):
+        submission = str(submission)
     await hooks.submit(submission)
 
 

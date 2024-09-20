@@ -63,6 +63,8 @@ class State(BaseModel):
     next_step: Dict = Field(default_factory=dict)
     token_limit: int = 500000
     token_usage: int = 0
+    time_limit: int = 60 * 60 * 2
+    time_usage: int = 0
     timeout: int = 600
     submissions: List[str] = Field(default_factory=list)
 
@@ -115,6 +117,7 @@ class Settings(BaseModel):
     generator: str
     discriminator: str
     actor: str
+    autosubmit: bool = False
 
 
 okabe_ito = {
@@ -199,3 +202,11 @@ class Agent(BaseModel):
             hooks.log_with_attributes(style(step_kind), message_content)
         else:
             hooks.log_with_attributes(style("observation"), message.content)
+
+    async def autosubmit(self):
+        if self.settings.autosubmit:
+            tokens_remaining = self.state.token_limit - self.state.token_usage
+            time_remaining = self.state.time_limit - self.state.time_usage
+            if tokens_remaining < 200_000 or time_remaining < 300:
+                await hooks.submit("")
+                return
