@@ -288,7 +288,7 @@ _basic = {
     "timeout": set_timeout_object,
 }
 
-_basic_vision = {"describeImage": describe_image_object, **_basic}
+_basic_vision = {"describe_image": describe_image_object, **_basic}
 
 _vision_double_return = {
     **_basic_vision,

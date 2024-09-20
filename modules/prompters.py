@@ -133,13 +133,10 @@ def _get_trimmed_message(node: Node, token_usage_fraction: float) -> Message:
     if not needs_trimming:
         return message
 
-    content = (
-        notice_retroactively_using_saved_output.replace(
-            "{{&filename}}",
-            node.metadata["saved_output_filename"],
-        )
-        .replace("{{&output_start}}", message.content[:300])
-        .replace("{{&output_end}}", message.content[-300:])
+    content = notice_retroactively_using_saved_output.format(
+        filename=node.metadata["saved_output_filename"],
+        output_start=message.content[:300],
+        output_end=message.content[-300:],
     )
     return Message(
         role="function",

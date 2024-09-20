@@ -165,7 +165,14 @@ async def test_score_feedback(
 
     for idx_message, (expected_role, expected_content) in enumerate(
         [
-            ("system", templates.claude_basic_system_prompt),
+            (
+                "system",
+                templates.claude_basic_system_prompt.format(
+                    tools="\n".join(
+                        templates.get_tool_descriptions(list(agent.toolkit_dict.keys()))
+                    )
+                ),
+            ),
             ("user", "Your current task is the following: test task"),
             ("assistant", "score<score></score>"),
             (

@@ -12,6 +12,7 @@ from templates import (
     claude_basic_system_prompt,
     compare_and_regenerate_prompt_v1,
     compare_options_prompt_v1,
+    get_tool_descriptions,
     gpt_basic_system_prompt,
 )
 
@@ -30,6 +31,9 @@ async def generate_comparison_claude_legacy(
     options_prompt_template: str,
     system_prompt: str = claude_basic_system_prompt,
 ) -> MiddlemanResult:
+    system_prompt = system_prompt.format(
+        tools="\n".join(get_tool_descriptions(list(agent.toolkit_dict.keys())))
+    )
     wrapped_messages = [
         {
             "role": "system",
@@ -66,9 +70,7 @@ async def generate_comparison_claude_legacy(
     wrapped_messages.append(
         {
             "role": "user",
-            "content": options_prompt_template.replace(
-                "{{&options}}", formatted_options
-            ),
+            "content": options_prompt_template.format(options=formatted_options),
         }
     )
     generation = await hooks.generate(
@@ -114,7 +116,7 @@ async def generate_comparison_gpt(
     wrapped_messages.append(
         OpenaiChatMessage(
             role="user",
-            content=options_prompt_template.replace("{{&options}}", formatted_options),
+            content=options_prompt_template.format(options=formatted_options),
         )
     )
     generation = await hooks.generate(

@@ -93,10 +93,10 @@ async def maybe_prompt_to_search_post_act(output: Message) -> Optional[Message]:
         filename = f"{long_output_dir}/long_output_{str(1 + math.floor(random.random() * 9007199254740990))}.txt"
         with open(filename, "w") as f:
             f.write(output.content)
-        output.content = (
-            prompt_to_search.replace("{{&filename}}", filename)
-            .replace("{{&output_start}}", output.content[:100])
-            .replace("{{&output_end}}", output.content[-100:])
+        output.content = prompt_to_search.format(
+            filename=filename,
+            output_start=output.content[:100],
+            output_end=output.content[-100:],
         )
         return output
 

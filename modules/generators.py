@@ -8,6 +8,7 @@ from pyhooks.types import MiddlemanSettings, OpenaiChatMessage
 from base import Agent, Message, hooks
 from templates import (
     claude_basic_system_prompt,
+    get_tool_descriptions,
     gpt_basic_system_prompt,
 )
 
@@ -28,7 +29,9 @@ async def _claude_legacy_factory(
     wrapped_messages = [
         {
             "role": "system",
-            "content": claude_basic_system_prompt,
+            "content": claude_basic_system_prompt.format(
+                tools="\n".join(get_tool_descriptions(list(agent.toolkit_dict.keys())))
+            ),
         },
         {
             "role": "user",
