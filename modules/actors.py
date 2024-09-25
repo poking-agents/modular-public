@@ -1,50 +1,79 @@
-import os
-import math
 import json
+import math
+import os
 import random
-from typing import Dict, Tuple
+from typing import Optional
 
-from templates import reject_arguments_prompt, reject_command_prompt, prompt_to_search
 from base import Agent, Message
+from templates import prompt_to_search, reject_arguments_prompt, reject_command_prompt
 
-async def get_result_message_simple(agent: Agent) -> Message:
+
+async def get_result_message_simple(agent: Agent) -> Optional[Message]:
     last_node = agent.state.nodes[agent.state.last_node_id]
-    if last_node.message.function_call:
-        tool_name = last_node.message.function_call["name"]
-        tool_args = last_node.message.function_call["arguments"]
-        output = ""
-        if tool_name in agent.toolkit_dict:
-            try: # parse arguments as JSON to be unpacked on function call
-                json_args = json.loads(tool_args)
-                if isinstance(json_args, int):
-                    # we probably want to treat this as in the case below: as the single argument
-                    raise TypeError
-                output = await agent.toolkit_dict[tool_name]["function"](agent.state, **json_args)
-            except (json.JSONDecodeError, TypeError):
-                try: # assume there is only one required argument, and it's the passed string
-                    required_args = agent.toolkit_dict[tool_name]["parameters"]["required"]
-                    if len(required_args) != 1:
-                        raise TypeError
-                    tool_args = {required_args[0]: tool_args}
-                    output = await agent.toolkit_dict[tool_name]["function"](agent.state, **tool_args)
-                except (TypeError): # tell agent the command failed
-                    return Message(
-                        role="user",
-                        content=reject_arguments_prompt,
-                        function_call=None,
-                    )
-            return Message(
-                role="function",
-                name=tool_name,
-                content=output,
-                function_call=None,
-            )
-        else:
+    if not last_node.message.function_call:
+        return None
+
+    tool_name = last_node.message.function_call["name"]
+    output = ""
+    if tool_name not in agent.toolkit_dict:
+        return Message(
+            role="user",
+            content=reject_command_prompt,
+            function_call=None,
+        )
+
+    tool_info = agent.toolkit_dict[tool_name]
+    tool_fn = tool_info["function"]
+    tool_params = tool_info["parameters"]
+    agent_args = last_node.message.function_call["arguments"]
+    try:
+        # parse arguments as JSON to be unpacked on function call
+        agent_args = json.loads(agent_args)
+    except json.JSONDecodeError:
+        pass
+
+    if not tool_params:
+        if agent_args:
             return Message(
                 role="user",
-                content=reject_command_prompt,
+                content=reject_arguments_prompt,
                 function_call=None,
             )
+        return Message(
+            role="function",
+            name=tool_name,
+            content=await tool_fn(agent.state),
+            function_call=None,
+        )
+
+    required_args = tool_params.get("required", [])
+    if isinstance(agent_args, dict):
+        try:
+            output = await tool_fn(agent.state, **agent_args)
+        except TypeError:
+            return Message(
+                role="user",
+                content=reject_arguments_prompt,
+                function_call=None,
+            )
+    elif len(required_args) != 1:
+        # tell agent the command failed
+        return Message(
+            role="user",
+            content=reject_arguments_prompt,
+            function_call=None,
+        )
+    else:
+        # assume there is only one required argument, and it's the passed string
+        agent_args = {required_args[0]: agent_args}
+        output = await tool_fn(agent.state, **agent_args)
+
+    return Message(
+        role="function",
+        name=tool_name,
+        content=output,
+        function_call=None,
+    )
 
 
 async def _basic(agent: Agent) -> None:
@@ -54,7 +83,7 @@ async def _basic(agent: Agent) -> None:
     agent.state.next_step["module_type"] = "prompter"
 
 
-async def maybe_prompt_to_search_post_act(output: Message) -> Message:
+async def maybe_prompt_to_search_post_act(output: Message) -> Optional[Message]:
     if len(output.content) > 4500:
         long_output_dir = "/home/agent/long_outputs"
         try:
@@ -64,10 +93,10 @@ async def maybe_prompt_to_search_post_act(output: Message) -> Message:
         filename = f"{long_output_dir}/long_output_{str(1 + math.floor(random.random() * 9007199254740990))}.txt"
         with open(filename, "w") as f:
             f.write(output.content)
-        output.content = (
-            prompt_to_search.replace("{{&filename}}", filename)
-            .replace("{{&output_start}}", output.content[:100])
-            .replace("{{&output_end}}", output.content[-100:])
+        output.content = prompt_to_search.format(
+            filename=filename,
+            output_start=output.content[:100],
+            output_end=output.content[-100:],
         )
         return output
 
@@ -83,7 +112,9 @@ async def _always_save(agent: Agent) -> None:
         filename = f"{output_dir}/tool_output_{str(1 + math.floor(random.random() * 9007199254740990))}.txt"
         with open(filename, "w") as f:
             f.write(output.content)
-        output.content += "\n\n" + f"[Note: the above tool output has been saved to {filename}]"
+        output.content += (
+            "\n\n" + f"[Note: the above tool output has been saved to {filename}]"
+        )
         agent.append(output, metadata={"saved_output_filename": filename})
     agent.state.next_step["module_type"] = "prompter"
 

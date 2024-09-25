@@ -1,0 +1,5 @@
+pyfakefs
+pytest
+pytest-asyncio
+pytest-mock
+pytest-watcher

@@ -6,23 +6,23 @@ TOOLKITS = ["_basic", "_basic_vision", "_vision_double_return"]
 PROMPTERS = ["_basic", "_context_and_usage_aware"]
 
 GENERATORS = []
-for model, n in product(
-    ["c3o", "c3s", "c3h"], [1, 2, 4, 8, 16, 32, 64]
-):
+for model, n in product(["c3o", "c3s", "c3h", "c3.5s"], [1, 2, 4, 8, 16, 32, 64]):
     GENERATORS.append(f"_claude_legacy_{n}x{model}")
-for gpt, n in product(["4", "4t", "4o", "4om"], [1, 2, 4, 8, 16, 32, 64]):
+for gpt, n in product(["4", "4t", "4o", "4om", "o1p", "o1m"], [1, 2, 4, 8, 16, 32, 64]):
     GENERATORS.append(f"_gpt_basic_{n}x{gpt}")
 
 DISCRIMINATORS = ["_basic"]
 DISCRIMINATORS += [
     f"_compare_options_{model}"
-    for model in ["4", "4t", "4o", "4om", "c3o", "c3s", "c3h"]
+    for model in ["4", "4t", "4o", "4om", "o1p", "o1m", "c3o", "c3s", "c3h", "c3.5s"]
 ]
 DISCRIMINATORS += [
     f"_compare_and_regenerate_{n_rounds}_rounds_gpt_{gpt}"
-    for gpt, n_rounds in product(["4", "4t", "4o", "4om"], range(1, 6))
+    for gpt, n_rounds in product(["4", "4t", "4o", "4om", "o1p", "o1m"], range(1, 6))
 ]
-DISCRIMINATORS += [f"_assess_and_backtrack_gpt_{gpt}" for gpt in ["4", "4t", "4o", "4om"]]
+DISCRIMINATORS += [
+    f"_assess_and_backtrack_gpt_{gpt}" for gpt in ["4", "4t", "4o", "4om", "o1p", "o1m"]
+]
 
 ACTORS = ["_basic", "_prompt_to_search", "_always_save"]
 
@@ -88,9 +88,57 @@ MANIFEST = {
             },
             "token_limit": {"type": "integer"},
             "token_usage": {"type": "integer"},
+            "time_limit": {"type": "integer"},
+            "time_usage": {"type": "integer"},
+            "timeout": {"type": "integer"},
+            "last_rating_options": {
+                "oneOf": [
+                    {
+                        "type": "array",
+                        "items": {"$ref": "#/$defs/ratingOption"},
+                        "title": "Rating options",
+                    },
+                    {
+                        "type": "null",
+                        "title": "null",
+                    },
+                ],
+                "default": "null",
+            },
         },
         "additionalProperties": False,
         "required": ["task_string", "nodes", "last_node_id"],
+        "$defs": {
+            "ratingOption": {
+                "type": "object",
+                "title": "Rating option",
+                "properties": {
+                    "action": {"type": "string"},
+                    "description": {
+                        "type": ["string", "null"],
+                        "default": None,
+                    },
+                    "fixedRating": {
+                        "type": ["number", "null"],
+                        "default": None,
+                    },
+                    "userId": {
+                        "type": ["string", "null"],
+                        "default": None,
+                    },
+                    "editOfOption": {
+                        "type": ["integer", "null"],
+                        "default": None,
+                    },
+                    "duplicates": {
+                        "type": ["integer", "null"],
+                        "default": "null",
+                    },
+                },
+                "additionalProperties": False,
+                "required": ["action"],
+            },
+        },
     },
 }
 
@@ -100,7 +148,15 @@ def generate_manifest():
     for toolkit, prompter, generator, discriminator, actor in product(
         TOOLKITS, PROMPTERS, GENERATORS, DISCRIMINATORS, ACTORS
     ):
-        settings_pack_name = f"{toolkit.replace('_basic', '')}t{prompter.replace('_basic', '')}p{generator.replace('_basic', '')}g{discriminator.replace('_basic', '')}d{actor.replace('_basic', '')}a"
+        settings_pack_name = "".join(
+            [
+                toolkit.replace("_basic", "") + "t",
+                prompter.replace("_basic", "") + "p",
+                generator.replace("_basic", "") + "g",
+                discriminator.replace("_basic", "") + "d",
+                actor.replace("_basic", "") + "a",
+            ]
+        )
         settings_packs[settings_pack_name] = {
             "toolkit": toolkit,
             "prompter": prompter,
@@ -108,10 +164,13 @@ def generate_manifest():
             "discriminator": discriminator,
             "actor": actor,
         }
-    MANIFEST["settingsPacks"] = settings_packs
-    MANIFEST["defaultSettingsPack"] = "tp_gpt_1x4ogda"
+    manifest = {
+        **MANIFEST,
+        "settingsPacks": settings_packs,
+        "defaultSettingsPack": "t_context_and_usage_awarep_gpt_1x4ogda",
+    }
     with open("manifest.json", "w") as f:
-        f.write(json.dumps(MANIFEST, indent=4, sort_keys=True))
+        f.write(json.dumps(manifest, indent=4, sort_keys=True))
 
 
 if __name__ == "__main__":
