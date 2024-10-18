@@ -219,7 +219,10 @@ async def _fixed_rating_factory(agent: Agent) -> None:
     # If branching on MP4 UI by choosing a different rating option, MP4 will start
     # a new run with state.last_rating_options with only the option that was chosen.
     # Then we'll want to append that to the state, rather than the rated action.
-    if agent.state.last_rating_options is not None and len(agent.state.last_rating_options) == 1:
+    if (
+        agent.state.last_rating_options is not None
+        and len(agent.state.last_rating_options) == 1
+    ):
         message_to_append = form_message(agent.state.last_rating_options[0])
         agent.state.last_rating_options = None
     agent.append(message_to_append, metadata=node_metadata)
