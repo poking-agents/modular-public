@@ -189,11 +189,14 @@ async def _fixed_rating_factory(agent: Agent) -> None:
                 function_call=option_dict["function_call"],
             )
         except json.JSONDecodeError as e:
-            hooks.log(f"Error: {e}\nWhile decoding serialized option: {serialized_option}")
+            hooks.log(
+                f"Error: {e}\nWhile decoding serialized option: {serialized_option}"
+            )
             return Message(role="assistant", content=serialized_option)
 
     rating_options = [
-        RatingOption(action=form_action(option), rating=fixed_rating) for option in options
+        RatingOption(action=form_action(option), rating=fixed_rating)
+        for option in options
     ]
     rating_template = "[Inert, should have no effect] {{&transcipt}} {{&actions}}"
     transcript = "[Inert, should have no effect]"
@@ -246,7 +249,9 @@ async def _compare_and_regenerate_gpt_factory(
             try:
                 action = json.loads(action.group(1))
                 content = "" if "content" not in action else action["content"]
-                function_call = None if "function_call" not in action else action["function_call"]
+                function_call = (
+                    None if "function_call" not in action else action["function_call"]
+                )
                 assert isinstance(function_call, (None.__class__, dict))
                 new_options.append(
                     Message(
@@ -259,8 +264,12 @@ async def _compare_and_regenerate_gpt_factory(
                 continue
     if len(new_options) == 1:
         node_metadata = {
-            "d__compare_and_regenerate__original_options": agent.state.next_step["args"]["options"],
-            "g__generation_metadata": agent.state.next_step["args"]["generation_metadata"],
+            "d__compare_and_regenerate__original_options": agent.state.next_step[
+                "args"
+            ]["options"],
+            "g__generation_metadata": agent.state.next_step["args"][
+                "generation_metadata"
+            ],
         }
         agent.append(new_options[0], metadata=node_metadata)
         agent.state.next_step["module_type"] = "actor"
@@ -301,10 +310,12 @@ async def _assess_and_backtrack_gpt_factory(
         if "APPROVE" in completion:
             approved = True
             node_metadata = {
-                "d__compare_and_regenerate__original_options": agent.state.next_step["args"][
-                    "options"
+                "d__compare_and_regenerate__original_options": agent.state.next_step[
+                    "args"
+                ]["options"],
+                "g__generation_metadata": agent.state.next_step["args"][
+                    "generation_metadata"
                 ],
-                "g__generation_metadata": agent.state.next_step["args"]["generation_metadata"],
             }
             agent.append(action, metadata=node_metadata)
             agent.state.next_step["module_type"] = "actor"
@@ -342,13 +353,17 @@ for model, desc, comparison_generator in models_and_comparison_generators:
     )
 
 
-for (model, desc, _), n_rounds in product(models_and_comparison_generators, range(1, 6)):
+for (model, desc, _), n_rounds in product(
+    models_and_comparison_generators, range(1, 6)
+):
     globals()[f"_fixed_rating_{desc}"] = partial(
         _fixed_rating_factory,
     )
 
 # TODO: Make compatible with claude_legacy format (currently the resulting claude_legacy compatible functions are not intended to work)
-for (model, desc, _), n_rounds in product(models_and_comparison_generators, range(1, 6)):
+for (model, desc, _), n_rounds in product(
+    models_and_comparison_generators, range(1, 6)
+):
     globals()[f"_compare_and_regenerate_{n_rounds}_rounds_gpt_{desc}"] = partial(
         _compare_and_regenerate_gpt_factory,
         n_rounds=n_rounds,
@@ -360,6 +375,8 @@ for (model, desc, _), n_rounds in product(models_and_comparison_generators, rang
 for model, desc, comparison_generator in models_and_comparison_generators:
     globals()[f"_assess_and_backtrack_gpt_{desc}"] = partial(
         _assess_and_backtrack_gpt_factory,
-        middleman_settings=MiddlemanSettings(n=1, model=model, temp=1, max_tokens=4096, stop=[]),
+        middleman_settings=MiddlemanSettings(
+            n=1, model=model, temp=1, max_tokens=4096, stop=[]
+        ),
         comparison_generator=comparison_generator,
     )
