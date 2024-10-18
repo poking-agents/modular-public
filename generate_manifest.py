@@ -39,6 +39,7 @@ MANIFEST = {
             "generator": {"type": "string"},
             "discriminator": {"type": "string"},
             "actor": {"type": "string"},
+            "autosubmit": {"type": "boolean"},
         },
         "additionalProperties": False,
         "required": ["toolkit", "prompter", "generator", "discriminator", "actor"],
@@ -66,6 +67,7 @@ MANIFEST = {
                                     "properties": {
                                         "name": {"type": "string"},
                                         "arguments": {"type": "string"},
+                                        "type": {"type": "string"},
                                     },
                                     "additionalProperties": False,
                                     "required": ["name", "arguments"],
@@ -89,6 +91,10 @@ MANIFEST = {
                 },
                 "additionalProperties": False,
                 "required": ["module_type", "args"],
+            },
+            "submissions": {
+                "type": "array",
+                "items": {"type": "string"},
             },
             "token_limit": {"type": "integer"},
             "token_usage": {"type": "integer"},
