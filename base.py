@@ -75,8 +75,6 @@ class State(BaseModel):
     def parse_obj(cls, obj):
         if "next_step" in obj:
             obj["next_step"] = convert_to_custom_type(obj["next_step"])
-        if "extra" in obj:
-            obj["extra"] = convert_to_custom_type(obj["extra"])
         if "nodes" in obj:
             obj["nodes"] = convert_to_custom_type(obj["nodes"])
         return super().parse_obj(obj)
