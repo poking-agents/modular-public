@@ -128,11 +128,13 @@ async def main(*args):
 
     if os.environ.get("STARTING_STATE"):
         state = State.parse_obj(json.loads(os.environ["STARTING_STATE"])["state"])
-        await replay_history(state, settings)
+        if not (os.environ.get("SKIP_REPLAY")):
+            await replay_history(state, settings)
     elif os.environ.get("STARTING_STATE_PATH"):
         with open(os.environ["STARTING_STATE_PATH"]) as f:
             state = State.parse_obj(json.load(f)["state"])
-        await replay_history(state, settings)
+        if not (os.environ.get("SKIP_REPLAY")):
+            await replay_history(state, settings)
 
     agent = Agent(
         state=state,
