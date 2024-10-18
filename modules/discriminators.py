@@ -2,7 +2,7 @@ import json
 import re
 from functools import partial
 from itertools import product
-from typing import Optional
+from typing import Optional, Union
 
 from pyhooks.types import (
     MiddlemanResult,
@@ -177,10 +177,10 @@ async def _fixed_rating_factory(agent: Agent) -> None:
             }
         )
 
-    def form_message(rated_option: RatedOption) -> Message:
+    def form_message(option: Union[RatedOption, RatingOption]) -> Message:
         # form_action will have serialized the content and function_call into a string
         # human-written options will also be json serialized, so we can parse them
-        serialized_option = rated_option.action
+        serialized_option = option.action
         try:
             option_dict = json.loads(serialized_option)
             return Message(
@@ -214,8 +214,15 @@ async def _fixed_rating_factory(agent: Agent) -> None:
         "d__rated_action": rated_action,
         "g__generation_metadata": agent.state.next_step["args"]["generation_metadata"],
     }
-    from_rated_action = form_message(rated_action)
-    agent.append(from_rated_action, metadata=node_metadata)
+    message_to_append = form_message(rated_action)
+
+    # If branching on MP4 UI by choosing a different rating option, MP4 will start
+    # a new run with state.last_rating_options with only the option that was chosen.
+    # Then we'll want to append that to the state, rather than the rated action.
+    if agent.state.last_rating_options is not None and len(agent.state.last_rating_options) == 1:
+        message_to_append = form_message(agent.state.last_rating_options[0])
+        agent.state.last_rating_options = None
+    agent.append(message_to_append, metadata=node_metadata)
     agent.state.next_step["module_type"] = "actor"
 
 
