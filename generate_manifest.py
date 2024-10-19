@@ -17,6 +17,10 @@ DISCRIMINATORS += [
     for model in ["4", "4t", "4o", "4om", "o1p", "o1m", "c3o", "c3s", "c3h", "c3.5s"]
 ]
 DISCRIMINATORS += [
+    f"_fixed_rating_{model}"
+    for model in ["4", "4t", "4o", "4om", "o1p", "o1m", "c3o", "c3s", "c3h", "c3.5s"]
+]
+DISCRIMINATORS += [
     f"_compare_and_regenerate_{n_rounds}_rounds_gpt_{gpt}"
     for gpt, n_rounds in product(["4", "4t", "4o", "4om", "o1p", "o1m"], range(1, 6))
 ]
@@ -35,6 +39,7 @@ MANIFEST = {
             "generator": {"type": "string"},
             "discriminator": {"type": "string"},
             "actor": {"type": "string"},
+            "autosubmit": {"type": "boolean"},
         },
         "additionalProperties": False,
         "required": ["toolkit", "prompter", "generator", "discriminator", "actor"],
@@ -62,6 +67,7 @@ MANIFEST = {
                                     "properties": {
                                         "name": {"type": "string"},
                                         "arguments": {"type": "string"},
+                                        "type": {"type": "string"},
                                     },
                                     "additionalProperties": False,
                                     "required": ["name", "arguments"],
@@ -85,6 +91,10 @@ MANIFEST = {
                 },
                 "additionalProperties": False,
                 "required": ["module_type", "args"],
+            },
+            "submissions": {
+                "type": "array",
+                "items": {"type": "string"},
             },
             "token_limit": {"type": "integer"},
             "token_usage": {"type": "integer"},
