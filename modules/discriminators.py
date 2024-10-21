@@ -194,6 +194,26 @@ async def _fixed_rating_factory(agent: Agent) -> None:
             )
             return Message(role="assistant", content=serialized_option)
 
+    node_metadata = {
+        "d__fixed_ratings__original_options": options,
+        "g__generation_metadata": agent.state.next_step["args"]["generation_metadata"],
+    }
+
+    # If branching on MP4 UI by choosing a different rating option, MP4 will start
+    # a new run with state.last_rating_options with only the option that was chosen.
+    # Then we'll want to append that to the state and just choose that, rather than
+    # logging a new rating set.
+    if (
+        agent.state.last_rating_options is not None
+        and len(agent.state.last_rating_options) == 1
+    ):
+        message_to_append = form_message(agent.state.last_rating_options[0])
+        node_metadata["d__rated_action"] = agent.state.last_rating_options[0]
+        agent.state.last_rating_options = None
+        agent.append(message_to_append, metadata=node_metadata)
+        agent.state.next_step["module_type"] = "actor"
+        return
+
     rating_options = [
         RatingOption(action=form_action(option), rating=fixed_rating)
         for option in options
@@ -209,22 +229,8 @@ async def _fixed_rating_factory(agent: Agent) -> None:
         options=rating_options,
         rating_model=rating_model,
     )
-    node_metadata = {
-        "d__fixed_ratings__original_options": options,
-        "d__rated_action": rated_action,
-        "g__generation_metadata": agent.state.next_step["args"]["generation_metadata"],
-    }
     message_to_append = form_message(rated_action)
-
-    # If branching on MP4 UI by choosing a different rating option, MP4 will start
-    # a new run with state.last_rating_options with only the option that was chosen.
-    # Then we'll want to append that to the state, rather than the rated action.
-    if (
-        agent.state.last_rating_options is not None
-        and len(agent.state.last_rating_options) == 1
-    ):
-        message_to_append = form_message(agent.state.last_rating_options[0])
-        agent.state.last_rating_options = None
+    node_metadata["d__rated_action"] = rated_action
     agent.append(message_to_append, metadata=node_metadata)
     agent.state.next_step["module_type"] = "actor"
 
