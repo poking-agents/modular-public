@@ -99,6 +99,7 @@ claude_legacy_compat_models = [
     ("claude-3-sonnet-20240229", "c3s"),
     ("claude-3-haiku-20240307", "c3h"),
     ("claude-3-5-sonnet-20240620", "c3.5s"),
+    ("claude-3-5-sonnet-20241022", "c3.5sv2"),
 ]
 for model_pair, n in product(claude_legacy_compat_models, [1, 2, 4, 8, 16, 32, 64]):
     model, desc = model_pair

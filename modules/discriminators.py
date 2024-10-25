@@ -358,6 +358,7 @@ models_and_comparison_generators = [
     ("claude-3-sonnet-20240229", "c3s", generate_comparison_claude_legacy),
     ("claude-3-haiku-20240229", "c3h", generate_comparison_claude_legacy),
     ("claude-3-5-sonnet-20240620", "c3.5s", generate_comparison_claude_legacy),
+    ("claude-3-5-sonnet-20241022", "c3.5sv2", generate_comparison_claude_legacy),
 ]
 for model, desc, comparison_generator in models_and_comparison_generators:
     globals()[f"_compare_options_{desc}"] = partial(
