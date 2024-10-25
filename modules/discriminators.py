@@ -215,7 +215,7 @@ async def _fixed_rating_factory(agent: Agent) -> None:
         return
 
     rating_options = [
-        RatingOption(action=form_action(option), rating=fixed_rating)
+        RatingOption(action=form_action(option), fixedRating=fixed_rating)
         for option in options
     ]
     rating_template = "[Inert, should have no effect] {{&transcipt}} {{&actions}}"
