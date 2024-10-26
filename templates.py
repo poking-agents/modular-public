@@ -17,7 +17,7 @@ tool_descriptions = {
 }
 
 
-def get_tool_descriptions(tools: list[str]) -> str:
+def get_tool_descriptions(tools: list[str]) -> list[str]:
     return [f"<{tool}>[{tool_descriptions[tool]}]</{tool}>" for tool in tools]
 
 

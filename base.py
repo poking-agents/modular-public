@@ -31,7 +31,7 @@ class Node(BaseModel):
         return path[::-1]
 
 
-def is_dict_exact_match(obj: dict, model: BaseModel) -> bool:
+def is_dict_exact_match(obj: dict, model: type[BaseModel]) -> bool:
     model_fields = set(model.__fields__.keys())
     obj_keys = set(obj.keys())
     return obj_keys.issubset(model_fields) and all(

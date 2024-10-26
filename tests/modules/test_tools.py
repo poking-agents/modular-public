@@ -34,7 +34,7 @@ async def test_score_fn(mocker: MockerFixture):
     )
     mocker.patch("pyhooks.Hooks.score", autospec=True, return_value=expected_output)
 
-    output = await tools.score_fn(None)
+    output = await tools.score_fn(base.State(task_string="test task"))
 
     assert isinstance(output, str)
     assert json.loads(output) == expected_output
@@ -93,7 +93,6 @@ async def test_score_feedback(
         token_limit=1000000,
         timeout=5,
         time_limit=time_limit,
-        scores="",
     )
     agent = base.Agent(
         state=state,
@@ -201,7 +200,7 @@ async def test_score_log_fn(mocker: MockerFixture):
     ]
     mocker.patch("pyhooks.Hooks.scoreLog", autospec=True, return_value=expected_output)
 
-    output = await tools.score_log_fn(None)
+    output = await tools.score_log_fn(base.State(task_string="test task"))
 
     assert isinstance(output, str)
     assert json.loads(output) == [x.dict() for x in expected_output]
