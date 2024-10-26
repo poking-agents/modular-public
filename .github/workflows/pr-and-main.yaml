@@ -54,7 +54,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref || github.ref }}
+          ref: ${{ github.ref }}
           ssh-key: ${{ secrets.DEPLOY_KEY }}
 
       - name: Install poetry
@@ -68,9 +68,9 @@ jobs:
       - run: poetry export --without-hashes --format requirements.txt > requirements.txt
 
       - run: |
-          if git diff --quiet --exit-code -- src requirements.txt
+          if git diff --quiet --exit-code ${{ github.ref }}~ -- main.py manifest.json modules requirements.txt
           then
-            echo "Requirements are up to date"
+            echo "No changes, skipping version bump"
             exit 0
           fi
 
