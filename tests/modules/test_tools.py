@@ -148,9 +148,9 @@ async def test_score_feedback(
     assert isinstance(call_args.kwargs["settings"], pyhooks.MiddlemanSettings)
 
     assert isinstance(call_args.kwargs["messages"], list)
-    messages = call_args.kwargs["messages"]
+    messages: list[pyhooks.OpenaiChatMessage] = call_args.kwargs["messages"]
     assert len(messages) == 4
-    assert {type(message) for message in messages} == {dict}
+    assert {type(message) for message in messages} == {pyhooks.OpenaiChatMessage}
 
     expected_score_message = prompters._format_score_message(
         base.Message(
@@ -181,8 +181,8 @@ async def test_score_feedback(
         ]
     ):
         message = messages[idx_message]
-        assert message["role"] == expected_role
-        assert message["content"] == expected_content
+        assert message.role == expected_role
+        assert message.content == expected_content
 
     if expected_output_file is not None:
         assert fs.exists(expected_output_file)
