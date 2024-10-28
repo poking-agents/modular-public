@@ -2,7 +2,6 @@ import json
 import re
 from functools import partial
 from itertools import product
-from typing import Optional, Union
 
 from pyhooks.types import (
     MiddlemanResult,
@@ -177,7 +176,7 @@ async def _fixed_rating_factory(agent: Agent) -> None:
             }
         )
 
-    def form_message(option: Union[RatedOption, RatingOption]) -> Message:
+    def form_message(option: RatedOption | RatingOption) -> Message:
         # form_action will have serialized the content and function_call into a string
         # human-written options will also be json serialized, so we can parse them
         serialized_option = option.action
@@ -238,7 +237,7 @@ async def _fixed_rating_factory(agent: Agent) -> None:
 async def _compare_and_regenerate_gpt_factory(
     agent: Agent,
     n_rounds: int = 1,
-    middleman_settings: Optional[MiddlemanSettings] = None,
+    middleman_settings: MiddlemanSettings | None = None,
 ) -> None:
     if middleman_settings is None:
         raise ValueError(
