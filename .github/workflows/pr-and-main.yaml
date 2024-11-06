@@ -49,7 +49,7 @@ jobs:
 
   publish:
     runs-on: ubuntu-latest
-    needs: lint
+    needs: [lint, test]
     if: ${{ github.event_name == 'push' }}
     steps:
       - uses: actions/checkout@v4
