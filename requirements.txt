@@ -1,3 +1,3 @@
 pydantic==2.6.4
-git+https://github.com/METR/vivaria.git@41ba59b45de476dfb410af771b668d6f80d608d0#subdirectory=pyhooks
+git+https://github.com/METR/vivaria.git@d4118af422a53d75a900c63256ed5360aaa45a7a#subdirectory=pyhooks
 tiktoken
