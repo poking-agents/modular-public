@@ -147,23 +147,23 @@ async def _gpt_basic_factory(
         }
         for k, v in agent.toolkit_dict.items()
     ]
-    good_generations = []
     num_to_generate = middleman_settings.n
-    generations_metadata = {}
+    generations = []
+    generation_metadata = {}
     while middleman_settings_copy.n > 0:
-        generations = await hooks.generate(
+        generation_n = await hooks.generate(
             messages=[cast(OpenaiChatMessage, msg) for msg in wrapped_messages],
             settings=middleman_settings_copy,
             functions=tools,
         )
-        good_generations += [
+        generations += [
             g
-            for g in generations.outputs or []
+            for g in generation_n.outputs or []
             if g.function_call is None or g.function_call["name"] in agent.toolkit_dict
         ]
-        middleman_settings_copy.n = num_to_generate - len(good_generations)
-        generations_metadata = {
-            k: v for k, v in generations.dict().items() if k != "outputs"
+        middleman_settings_copy.n = num_to_generate - len(generations)
+        generation_metadata = {
+            k: v for k, v in generation_n.dict().items() if k != "outputs"
         }
 
     options = [
@@ -172,11 +172,11 @@ async def _gpt_basic_factory(
             content=g.completion,
             function_call=(g.function_call if g.function_call else None),
         )
-        for g in good_generations
+        for g in generations
     ]
     agent.state.next_step["module_type"] = "discriminator"
     agent.state.next_step["args"].update(
-        generation_metadata=generations_metadata,
+        generation_metadata=generation_metadata,
         options=options,
     )
 
