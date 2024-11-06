@@ -54,8 +54,8 @@ The file starts with the following:
  and ends with the following:
 "...{output_end}\""""
 
-notice_retroactively_using_saved_output = """The output of the previous command was long and is being truncated to lower token usage. This message may have initially displayed the entire output, and so subsequent actions may have taken advantage of that information. {saved_output_instructions}If you need to refer to it, consider searching that file for the relevant information.
-The file starts with the following:
+notice_retroactively_using_saved_output = """The output of the previous command was long and is being truncated to lower token usage. This message may have initially displayed the entire output, and so subsequent actions may have taken advantage of that information. {saved_output_instructions}
+The output starts with the following:
 "{output_start}..."
 and ends with the following:
 "...{output_end}\""""

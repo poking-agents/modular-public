@@ -139,7 +139,7 @@ def _get_trimmed_message(node: Node, token_usage_fraction: float) -> Message:
 
     content = notice_retroactively_using_saved_output.format(
         saved_output_instructions=(
-            f"The full output is saved as {saved_output_filename}. "
+            f"The full output is saved as {saved_output_filename}. If you need to refer to it, consider searching that file for the relevant information."
             if (saved_output_filename := node.metadata.get("saved_output_filename"))
             else ""
         ),

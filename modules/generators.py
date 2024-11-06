@@ -149,7 +149,7 @@ async def _gpt_basic_factory(
     ]
     good_generations = []
     num_to_generate = middleman_settings.n
-    generations = None
+    generations_metadata = {}
     while middleman_settings_copy.n > 0:
         generations = await hooks.generate(
             messages=[cast(OpenaiChatMessage, msg) for msg in wrapped_messages],
@@ -162,9 +162,9 @@ async def _gpt_basic_factory(
             if g.function_call is None or g.function_call["name"] in agent.toolkit_dict
         ]
         middleman_settings_copy.n = num_to_generate - len(good_generations)
-
-    if generations is None:
-        raise ValueError("No generations returned from gpt_basic_factory")
+        generations_metadata = {
+            k: v for k, v in generations.dict().items() if k != "outputs"
+        }
 
     options = [
         Message(
@@ -175,10 +175,10 @@ async def _gpt_basic_factory(
         for g in good_generations
     ]
     agent.state.next_step["module_type"] = "discriminator"
-    agent.state.next_step["args"]["options"] = options
-    agent.state.next_step["args"]["generation_metadata"] = {
-        k: v for k, v in generations.dict().items() if k != "outputs"
-    }
+    agent.state.next_step["args"].update(
+        generation_metadata=generations_metadata,
+        options=options,
+    )
 
 
 gpt_models = [
