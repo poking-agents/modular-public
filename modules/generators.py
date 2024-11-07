@@ -62,19 +62,22 @@ async def _claude_legacy_factory(
             }
         )
     generations = await hooks.generate(
-        messages=wrapped_messages, settings=middleman_settings_copy
+        messages=[OpenaiChatMessage(**msg) for msg in wrapped_messages],
+        settings=middleman_settings_copy,
     )
+    if generations.outputs is None:
+        raise ValueError("No generations returned from claude_legacy_factory")
+
     generation = generations.outputs[0].completion
     messages = []
     for output in generations.outputs:
         generation = output.completion
-        open_tag_locs = {
-            tool: generation.find(f"<{tool}>") for tool in agent.toolkit_dict
-        }
-        last_tool = max(open_tag_locs, key=open_tag_locs.get)
+        last_tool_loc, last_tool = max(
+            [(generation.find(f"<{tool}>"), tool) for tool in agent.toolkit_dict]
+        )
         content = generation
         function_call = None
-        if open_tag_locs[last_tool] != -1:
+        if last_tool_loc != -1:
             content, raw_function_call = generation.rsplit(f"<{last_tool}>", maxsplit=1)
             function_call = {
                 "type": "function",
@@ -114,7 +117,7 @@ for model_pair, n in product(claude_legacy_compat_models, [1, 2, 4, 8, 16, 32, 6
 
 
 async def _gpt_basic_factory(
-    agent: Agent, middleman_settings: MiddlemanSettings = None
+    agent: Agent, middleman_settings: MiddlemanSettings | None = None
 ) -> None:
     if middleman_settings is None:
         raise ValueError(
@@ -144,33 +147,38 @@ async def _gpt_basic_factory(
         }
         for k, v in agent.toolkit_dict.items()
     ]
-    good_generations = []
     num_to_generate = middleman_settings.n
+    generations = []
+    generation_metadata = {}
     while middleman_settings_copy.n > 0:
-        generations = await hooks.generate(
+        generation_n = await hooks.generate(
             messages=[cast(OpenaiChatMessage, msg) for msg in wrapped_messages],
             settings=middleman_settings_copy,
             functions=tools,
         )
-        good_generations += [
+        generations += [
             g
-            for g in generations.outputs
+            for g in generation_n.outputs or []
             if g.function_call is None or g.function_call["name"] in agent.toolkit_dict
         ]
-        middleman_settings_copy.n = num_to_generate - len(good_generations)
+        middleman_settings_copy.n = num_to_generate - len(generations)
+        generation_metadata = {
+            k: v for k, v in generation_n.dict().items() if k != "outputs"
+        }
+
     options = [
         Message(
             role="assistant",
             content=g.completion,
             function_call=(g.function_call if g.function_call else None),
         )
-        for g in good_generations
+        for g in generations
     ]
     agent.state.next_step["module_type"] = "discriminator"
-    agent.state.next_step["args"]["options"] = options
-    agent.state.next_step["args"]["generation_metadata"] = {
-        k: v for k, v in generations.dict().items() if k != "outputs"
-    }
+    agent.state.next_step["args"].update(
+        generation_metadata=generation_metadata,
+        options=options,
+    )
 
 
 gpt_models = [

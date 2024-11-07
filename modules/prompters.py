@@ -138,7 +138,11 @@ def _get_trimmed_message(node: Node, token_usage_fraction: float) -> Message:
         return message
 
     content = notice_retroactively_using_saved_output.format(
-        filename=node.metadata["saved_output_filename"],
+        saved_output_instructions=(
+            f"The full output is saved as {saved_output_filename}. If you need to refer to it, consider searching that file for the relevant information."
+            if (saved_output_filename := node.metadata.get("saved_output_filename"))
+            else ""
+        ),
         output_start=message.content[:300],
         output_end=message.content[-300:],
     )
@@ -188,6 +192,6 @@ async def _context_and_usage_aware(agent: Agent) -> None:
         target_tok_length = 0.75 * 200_000
     else:
         target_tok_length = 0.75 * 128_000
-    messages = trim_message_list(messages, target_tok_length)
+    messages = trim_message_list(messages, int(target_tok_length))
     agent.state.next_step["module_type"] = "generator"
     agent.state.next_step["args"]["messages"] = messages

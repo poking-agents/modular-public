@@ -1,7 +1,7 @@
 import base64
 import json
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from pyhooks.types import MiddlemanSettings, OpenaiChatMessage
 
@@ -9,7 +9,7 @@ from base import State, actions, hooks
 from templates import default_timeout
 
 
-async def run_python(_state: State, code: Optional[str] = None) -> str:
+async def run_python(_state: State, code: str) -> str:
     timeout = _state.timeout
     output = await actions.run_python(code, timeout=timeout)
     return output
@@ -65,7 +65,7 @@ score_log_fn_object = {
 }
 
 
-async def return_fn(_state: State, submission: Optional[Any] = None) -> None:
+async def return_fn(_state: State, submission: Any = None) -> None:
     if isinstance(submission, dict):
         submission = json.dumps(submission)
     elif not isinstance(submission, str):
@@ -89,7 +89,7 @@ return_fn_object = {
 }
 
 
-async def double_return_fn(_state: State, submission: Optional[str] = None) -> None:
+async def double_return_fn(_state: State, submission: str | None = None) -> str | None:
     less_than_5_percent_remaining = (
         _state.token_limit - _state.token_usage < 0.05 * _state.token_limit
     )
@@ -99,10 +99,10 @@ async def double_return_fn(_state: State, submission: Optional[str] = None) -> N
         await hooks.submit(submission)
     elif less_than_5_percent_remaining:
         # if there is less than 5% of the token budget remaining, accept the submission
-        await hooks.submit(submission)
+        await hooks.submit(submission or "")
     else:
         # if it isn't, add it to the array of submissions
-        _state.submissions.append(submission)
+        _state.submissions.append(submission or "")
 
         ample_tokens_remaining = (
             _state.token_limit - _state.token_usage > 0.1 * _state.token_limit
@@ -134,7 +134,7 @@ double_return_fn_object = {
 
 
 async def run_bash_state(
-    _state: State, command: Optional[str] = None, timeout_override: Optional[int] = None
+    _state: State, command: str, timeout_override: int | None = None
 ) -> str:
     timeout = _state.timeout
     if timeout_override is not None:
@@ -201,7 +201,7 @@ set_timeout_object = {
 image_file_extensions = [".png", ".jpg", ".jpeg", ".webp", ".gif"]
 
 
-async def analyze_image(_state: State, image_url: str, query: str):
+async def analyze_image(_state: State, image_url: str, query: str | None = None):
     task = _state.task_string
 
     # TODO: support other vision models
@@ -237,9 +237,7 @@ I need to view this image, but don't have image input enabled. Here's the image:
     )
 
 
-async def describe_image_fn(
-    _state: State, file_path: Optional[str] = None, query: Optional[str] = None
-):
+async def describe_image_fn(_state: State, file_path: str, query: str | None = None):
     try:
         print(f"Analyzing {file_path} with query {query}")
         extension = Path(file_path).suffix

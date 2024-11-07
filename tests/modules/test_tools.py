@@ -34,7 +34,7 @@ async def test_score_fn(mocker: MockerFixture):
     )
     mocker.patch("pyhooks.Hooks.score", autospec=True, return_value=expected_output)
 
-    output = await tools.score_fn(None)
+    output = await tools.score_fn(base.State(task_string="test task"))
 
     assert isinstance(output, str)
     assert json.loads(output) == expected_output
@@ -93,7 +93,6 @@ async def test_score_feedback(
         token_limit=1000000,
         timeout=5,
         time_limit=time_limit,
-        scores="",
     )
     agent = base.Agent(
         state=state,
@@ -149,9 +148,9 @@ async def test_score_feedback(
     assert isinstance(call_args.kwargs["settings"], pyhooks.MiddlemanSettings)
 
     assert isinstance(call_args.kwargs["messages"], list)
-    messages = call_args.kwargs["messages"]
+    messages: list[pyhooks.OpenaiChatMessage] = call_args.kwargs["messages"]
     assert len(messages) == 4
-    assert {type(message) for message in messages} == {dict}
+    assert {type(message) for message in messages} == {pyhooks.OpenaiChatMessage}
 
     expected_score_message = prompters._format_score_message(
         base.Message(
@@ -182,8 +181,8 @@ async def test_score_feedback(
         ]
     ):
         message = messages[idx_message]
-        assert message["role"] == expected_role
-        assert message["content"] == expected_content
+        assert message.role == expected_role
+        assert message.content == expected_content
 
     if expected_output_file is not None:
         assert fs.exists(expected_output_file)
@@ -201,7 +200,7 @@ async def test_score_log_fn(mocker: MockerFixture):
     ]
     mocker.patch("pyhooks.Hooks.scoreLog", autospec=True, return_value=expected_output)
 
-    output = await tools.score_log_fn(None)
+    output = await tools.score_log_fn(base.State(task_string="test task"))
 
     assert isinstance(output, str)
     assert json.loads(output) == [x.dict() for x in expected_output]

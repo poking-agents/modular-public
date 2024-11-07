@@ -1,0 +1,86 @@
+name: Tests
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install poetry
+        run: pipx install poetry
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: poetry
+
+      - run: poetry install
+
+      - run: poetry run pytest
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install poetry
+        run: pipx install poetry
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: poetry
+
+      - run: poetry install
+
+      - name: Check formatting
+        run: poetry run ruff check . --output-format github
+
+      - name: Check types
+        if: ${{ always() }}
+        run: poetry run pyright .
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    if: ${{ github.event_name == 'push' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
+
+      - name: Install poetry
+        run: pipx install poetry
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: poetry
+
+      - run: poetry export --without-hashes --format requirements.txt > requirements.txt
+
+      - run: python generate_manifest.py
+
+      - run: |
+          if git diff --quiet --exit-code ${{ github.ref }}~ -- main.py base.py manifest.json modules requirements.txt
+          then
+            echo "No changes, skipping version bump"
+            exit 0
+          fi
+
+          PACKAGE_VERSION="v$(poetry version patch --short)"
+          git add requirements.txt pyproject.toml
+          git config --local user.email "actions@github.com"
+          git config --local user.name "GitHub Actions"
+          git commit -m "[skip ci] Bump version to ${PACKAGE_VERSION}"
+          git push
+          git tag "${PACKAGE_VERSION}"
+          git push --tags
