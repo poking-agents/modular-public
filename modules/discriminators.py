@@ -182,10 +182,11 @@ async def _fixed_rating_factory(agent: Agent) -> None:
         serialized_option = option.action
         try:
             option_dict = json.loads(serialized_option)
+            function_call = None if "function_call" not in option_dict else option_dict["function_call"]
             return Message(
                 role="assistant",
                 content=option_dict["content"],
-                function_call=option_dict["function_call"],
+                function_call=function_call,
             )
         except json.JSONDecodeError as e:
             hooks.log(
