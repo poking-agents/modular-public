@@ -227,7 +227,7 @@ async def _program_synthesis_prompter(agent: Agent, num_programs=100) -> None:
         )
     )
 
-    match agent.state.next_step["args"]["mode"]:
+    match agent.state.next_step["args"].get("mode"):
         case "revision":
             messages.append(
                 Message(
