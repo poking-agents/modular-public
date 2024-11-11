@@ -4,7 +4,6 @@ import os
 import random
 
 from base import Agent, Message
-from modules.tools import run_python
 from templates import prompt_to_search, reject_arguments_prompt, reject_command_prompt
 
 
@@ -89,7 +88,7 @@ async def _basic(agent: Agent) -> None:
     agent.state.next_step["module_type"] = "prompter"
 
 
-async def maybe_prompt_to_search_post_act(output: Message) -> Optional[Message]:
+async def maybe_prompt_to_search_post_act(output: Message) -> Message | None:
     if len(output.content) > 4500:
         long_output_dir = "/home/agent/long_outputs"
         try:
