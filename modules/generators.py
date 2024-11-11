@@ -149,7 +149,7 @@ async def _program_synthesis_factory(
         )
 
     match agent.state.next_step["args"]["mode"]:
-        case "revision":
+        case "revision" | "exploration" as mode:
             generations = await hooks.generate(
                 messages=wrapped_messages, settings=middleman_settings
             )
@@ -178,7 +178,8 @@ async def _program_synthesis_factory(
             )
             agent.append(message)
             agent.state.next_step["module_type"] = "actor"
-            agent.state.next_step["args"]["mode"] = "synthesis"
+            if mode == "revision":
+                agent.state.next_step["args"]["mode"] = "synthesis"
             agent.state.next_step["args"]["generation_metadata"] = {
                 k: v for k, v in generations.dict().items() if k != "outputs"
             }

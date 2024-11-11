@@ -1,4 +1,5 @@
 import json
+import textwrap
 from typing import Any
 
 import tiktoken
@@ -193,7 +194,9 @@ async def _context_and_usage_aware(agent: Agent) -> None:
     agent.state.next_step["args"]["messages"] = messages
 
 
-async def _program_synthesis_prompter(agent: Agent, num_programs=100) -> None:
+async def _program_synthesis_prompter(
+    agent: Agent, num_programs=100, num_exploration_rounds_init=5
+) -> None:
     node_ids = agent.state.get_path()
     messages = []
     token_usage_fraction = agent.state.token_usage / agent.state.token_limit
@@ -228,6 +231,14 @@ async def _program_synthesis_prompter(agent: Agent, num_programs=100) -> None:
     )
 
     match agent.state.next_step["args"].get("mode"):
+        case None:
+            # init
+            agent.state.next_step["args"]["num_rounds"] = num_exploration_rounds_init
+            agent.state.next_step["args"]["mode"] = "exploration"
+        case "exploration":
+            agent.state.next_step["args"]["num_rounds"] -= 1
+            if agent.state.next_step["args"]["num_rounds"] == 0:
+                agent.state.next_step["args"]["mode"] = "synthesis"
         case "revision":
             messages.append(
                 Message(
@@ -238,11 +249,17 @@ async def _program_synthesis_prompter(agent: Agent, num_programs=100) -> None:
                 )
             )
             agent.state.next_step["args"]["mode"] = "revision"
-        case "synthesis" | None:
+        case "synthesis":
             messages.append(
                 Message(
                     role="user",
-                    content="Please provide a solution to the task in Python. Ensure that you write test functions that check that the output of the solution meet various criteria required in the task description. Make sure that the tests error if the output does not meet the required criteria. Write the code such that when it is executed, it also runs the test functions on the solution output, with asserts.",
+                    content=textwrap.dedent(
+                        """
+                        Given the above information, please provide a solution to the task in Python. Ensure that you write test functions that check that the output of the solution meet various criteria required in the task description. Make sure that the tests error if the output does not meet the required criteria. Write the code such that when it is executed, it also runs the test functions on the solution output, with asserts.
+
+                        Only write the full python script and nothing else. 
+                        """
+                    ),
                     name=None,
                     function_call=None,
                 )
