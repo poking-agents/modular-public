@@ -20,6 +20,7 @@ from templates import (
     get_tool_descriptions,
     gpt_basic_system_prompt,
 )
+from modules.actors import get_result_message_on_message, save_output
 
 
 async def _basic(agent: Agent) -> None:
@@ -28,6 +29,23 @@ async def _basic(agent: Agent) -> None:
     }
     agent.append(agent.state.next_step["args"]["options"][0], metadata=node_metadata)
     agent.state.next_step["module_type"] = "actor"
+
+
+async def _run_all_options(agent: Agent) -> None:
+    options = agent.state.next_step["args"]["options"]
+    results = [
+        await get_result_message_on_message(agent, option.message) for option in options
+    ]
+    # proxy traceback for tests passing
+    # TODO: make this less dumb
+    results = [
+        node for node in results if node is not None and "Traceback" not in node.content
+    ]
+    for result in results:
+        filename = await save_output(result)
+        agent.append(result, metadata={"saved_output_filename": filename})
+    agent.state.next_step["module_type"] = "actor"
+    agent.state.next_step["args"]["mode"] = "revision"
 
 
 async def generate_comparison_claude_legacy(

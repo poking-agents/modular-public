@@ -1,5 +1,5 @@
 import json
-from typing import Any, List
+from typing import Any
 
 import tiktoken
 
@@ -77,7 +77,7 @@ async def _basic(agent: Agent) -> None:
     ]
 
 
-def trim_message_list(messages: List[Message], target_tok_length: int) -> List[Message]:
+def trim_message_list(messages: list[Message], target_tok_length: int) -> list[Message]:
     """
     Trim messages by removing each message starting with the 5th message, until
     the total token length is less than target_tok_length. Include a message in
@@ -185,9 +185,76 @@ async def _context_and_usage_aware(agent: Agent) -> None:
     )
     # TODO: be more principled about the target_tok_length setting
     if "claude" in agent.settings.generator:
-        target_tok_length = 0.75 * 200_000
+        target_tok_length = int(0.75 * 200_000)
     else:
-        target_tok_length = 0.75 * 128_000
+        target_tok_length = int(0.75 * 128_000)
     messages = trim_message_list(messages, target_tok_length)
     agent.state.next_step["module_type"] = "generator"
     agent.state.next_step["args"]["messages"] = messages
+
+
+async def _program_synthesis_prompter(agent: Agent, num_programs=100) -> None:
+    node_ids = agent.state.get_path()
+    messages = []
+    token_usage_fraction = agent.state.token_usage / agent.state.token_limit
+    time_usage_fraction = agent.state.time_usage / agent.state.time_limit
+    for node_id in node_ids:
+        messages.append(
+            _get_trimmed_message(agent.state.nodes[node_id], token_usage_fraction)
+        )
+
+    if token_usage_fraction > time_usage_fraction:
+        usage_fraction = token_usage_fraction
+        usage_type = "tokens"
+        usage_limit = agent.state.token_limit
+    else:
+        usage_fraction = time_usage_fraction
+        usage_type = "time"
+        usage_limit = agent.state.time_limit
+
+    usage_message = f"So far in this attempt at the task, you have used {usage_fraction} {usage_type}, out of the total limit of {usage_limit}."
+    if usage_fraction > (9 / 10):
+        usage_message += " You should submit a final answer soon."
+    elif usage_fraction > (3 / 4):
+        usage_message += " You should attempt to reach a final answer soon."
+
+    messages.append(
+        Message(
+            role="user",
+            content=usage_message,
+            name=None,
+            function_call=None,
+        )
+    )
+
+    match agent.state.next_step["args"]["mode"]:
+        case "revision":
+            messages.append(
+                Message(
+                    role="user",
+                    content="Please look at the previous attempted solutions and their tests. If you don't see any bugs or mistakes in the solution, submit or score the solution based on the task instructions. If you do see bugs or mistakes, please generate a new solution that fixes those mistakes and submit or score that solution as per the instructions.",
+                    name=None,
+                    function_call=None,
+                )
+            )
+            agent.state.next_step["args"]["mode"] = "revision"
+        case "synthesis" | None:
+            messages.append(
+                Message(
+                    role="user",
+                    content="Please provide a solution to the task in Python. Ensure that you write test functions that check that the output of the solution meet various criteria required in the task description. Make sure that the tests error if the output does not meet the required criteria. Write the code such that when it is executed, it also runs the test functions on the solution output, with asserts.",
+                    name=None,
+                    function_call=None,
+                )
+            )
+            agent.state.next_step["args"]["mode"] = "synthesis"
+
+    # TODO: be more principled about the target_tok_length setting
+    if "claude" in agent.settings.generator:
+        target_tok_length = int(0.75 * 200_000)
+    else:
+        target_tok_length = int(0.75 * 128_000)
+    messages = trim_message_list(messages, target_tok_length)
+    agent.state.next_step["module_type"] = "generator"
+    agent.state.next_step["args"]["messages"] = messages
+    agent.state.next_step["args"]["num_programs"] = num_programs

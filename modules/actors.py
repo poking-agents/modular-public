@@ -2,18 +2,24 @@ import json
 import math
 import os
 import random
-from typing import Optional
 
 from base import Agent, Message
+from modules.tools import run_python
 from templates import prompt_to_search, reject_arguments_prompt, reject_command_prompt
 
 
-async def get_result_message_simple(agent: Agent) -> Optional[Message]:
+async def get_result_message_simple(agent: Agent) -> Message | None:
     last_node = agent.state.nodes[agent.state.last_node_id]
-    if not last_node.message.function_call:
+    return await get_result_message_on_message(agent, last_node.message)
+
+
+async def get_result_message_on_message(
+    agent: Agent, message: Message
+) -> Message | None:
+    if not message.function_call:
         return None
 
-    tool_name = last_node.message.function_call["name"]
+    tool_name = message.function_call["name"]
     output = ""
     if tool_name not in agent.toolkit_dict:
         return Message(
@@ -25,7 +31,7 @@ async def get_result_message_simple(agent: Agent) -> Optional[Message]:
     tool_info = agent.toolkit_dict[tool_name]
     tool_fn = tool_info["function"]
     tool_params = tool_info["parameters"]
-    agent_args = last_node.message.function_call["arguments"]
+    agent_args = message.function_call["arguments"]
     try:
         # parse arguments as JSON to be unpacked on function call
         agent_args = json.loads(agent_args)
@@ -101,20 +107,25 @@ async def maybe_prompt_to_search_post_act(output: Message) -> Optional[Message]:
         return output
 
 
-async def _always_save(agent: Agent) -> None:
-    output = await get_result_message_simple(agent)
+async def save_output(output: Message) -> str:
     output_dir = "/home/agent/tool_outputs"
     try:
         os.mkdir(output_dir)
     except FileExistsError:
         pass
+    filename = f"{output_dir}/tool_output_{str(1 + math.floor(random.random() * 9007199254740990))}.txt"
+    with open(filename, "w") as f:
+        f.write(output.content)
+    output.content += (
+        "\n\n" + f"[Note: the above tool output has been saved to {filename}]"
+    )
+    return filename
+
+
+async def _always_save(agent: Agent) -> None:
+    output = await get_result_message_simple(agent)
     if output is not None:
-        filename = f"{output_dir}/tool_output_{str(1 + math.floor(random.random() * 9007199254740990))}.txt"
-        with open(filename, "w") as f:
-            f.write(output.content)
-        output.content += (
-            "\n\n" + f"[Note: the above tool output has been saved to {filename}]"
-        )
+        filename = await save_output(output)
         agent.append(output, metadata={"saved_output_filename": filename})
     agent.state.next_step["module_type"] = "prompter"
 
