@@ -7,14 +7,12 @@ from base import Agent, Message
 from templates import prompt_to_search, reject_arguments_prompt, reject_command_prompt
 
 
-async def get_result_message_simple(agent: Agent) -> Message | None:
+async def get_latest_result_message(agent: Agent) -> Message | None:
     last_node = agent.state.nodes[agent.state.last_node_id]
-    return await get_result_message_on_message(agent, last_node.message)
+    return await get_result_message(agent, last_node.message)
 
 
-async def get_result_message_on_message(
-    agent: Agent, message: Message
-) -> Message | None:
+async def get_result_message(agent: Agent, message: Message) -> Message | None:
     if not message.function_call:
         return None
 
@@ -82,7 +80,7 @@ async def get_result_message_on_message(
 
 
 async def _basic(agent: Agent) -> None:
-    output = await get_result_message_simple(agent)
+    output = await get_latest_result_message(agent)
     if output is not None:
         agent.append(output)
     agent.state.next_step["module_type"] = "prompter"
@@ -122,7 +120,7 @@ async def save_output(output: Message) -> str:
 
 
 async def _always_save(agent: Agent) -> None:
-    output = await get_result_message_simple(agent)
+    output = await get_latest_result_message(agent)
     if output is not None:
         filename = await save_output(output)
         agent.append(output, metadata={"saved_output_filename": filename})
@@ -130,7 +128,7 @@ async def _always_save(agent: Agent) -> None:
 
 
 async def _prompt_to_search(agent: Agent) -> None:
-    output = await get_result_message_simple(agent)
+    output = await get_latest_result_message(agent)
     if output is not None:
         await maybe_prompt_to_search_post_act(output)
         agent.append(output)

@@ -20,7 +20,7 @@ from templates import (
     get_tool_descriptions,
     gpt_basic_system_prompt,
 )
-from modules.actors import get_result_message_on_message, save_output
+from modules.actors import get_result_message, save_output
 
 
 async def _basic(agent: Agent) -> None:
@@ -33,9 +33,7 @@ async def _basic(agent: Agent) -> None:
 
 async def _run_all_options(agent: Agent) -> None:
     options = agent.state.next_step["args"]["options"]
-    results = [
-        await get_result_message_on_message(agent, option.message) for option in options
-    ]
+    results = [await get_result_message(agent, message) for message in options]
     # proxy traceback for tests passing
     # TODO: make this less dumb
     results = [
