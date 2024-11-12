@@ -111,13 +111,13 @@ async def _program_synthesis_factory(
     num_programs = agent.state.next_step["args"]["num_programs"]
 
     wrapped_messages = [
-        Message(
+        OpenaiChatMessage(
             role="system",
             content=claude_basic_system_prompt.format(
                 tools="\n".join(get_tool_descriptions(list(agent.toolkit_dict.keys())))
             ),
         ),
-        Message(
+        OpenaiChatMessage(
             role="user",
             content=f"Your current task is the following: {agent.state.task_string}",
         ),
@@ -133,11 +133,11 @@ async def _program_synthesis_factory(
         elif msg.role == "function":
             role = "user"
             content = f"<{msg.name}-output>{msg.content}</{msg.name}-output>"
-        wrapped_messages.append(Message(role=role, content=content))
+        wrapped_messages.append(OpenaiChatMessage(role=role, content=content))
 
     if wrapped_messages[-1].role == "assistant":
         wrapped_messages.append(
-            Message(
+            OpenaiChatMessage(
                 role="user",
                 content="No function call was included in the last message. Please include a function call in the next message using the <[tool_name]> [args] </[tool_name]> syntax.",
             )
@@ -206,7 +206,7 @@ async def _program_synthesis_factory(
                                 f"</{last_tool}>"
                             ),
                         }
-                    message = Message(
+                    message = OpenaiChatMessage(
                         role="assistant",
                         content=content,
                         function_call=function_call,
