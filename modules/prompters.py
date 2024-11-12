@@ -195,7 +195,7 @@ async def _context_and_usage_aware(agent: Agent) -> None:
 
 
 async def _program_synthesis_prompter(
-    agent: Agent, num_programs=10, num_exploration_rounds_init=5
+    agent: Agent, num_programs=10, num_exploration_rounds_init=3
 ) -> None:
     node_ids = agent.state.get_path()
     messages = []
