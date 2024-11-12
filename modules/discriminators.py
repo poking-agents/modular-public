@@ -2,6 +2,7 @@ import json
 import re
 from functools import partial
 from itertools import product
+import textwrap
 
 from pyhooks.types import (
     MiddlemanResult,
@@ -31,19 +32,47 @@ async def _basic(agent: Agent) -> None:
     agent.state.next_step["module_type"] = "actor"
 
 
+def did_python_fail(output: str) -> bool:
+    return any(
+        [
+            "Traceback" in output,
+            "Error" in output,
+        ]
+    )
+
+
 async def _run_all_options(agent: Agent) -> None:
     options = agent.state.next_step["args"]["options"]
     results = [await get_result_message(agent, message) for message in options]
-    # proxy traceback for tests passing
     # TODO: make this less dumb
-    results = [
-        node for node in results if node is not None and "Traceback" not in node.content
-    ]
-    for result in results:
-        filename = await save_output(result)
-        agent.append(result, metadata={"saved_output_filename": filename})
-    agent.state.next_step["module_type"] = "actor"
-    agent.state.next_step["args"]["mode"] = "revision"
+    passing_results = []
+    failing_results = []
+    for node in results:
+        if node is not None:
+            if did_python_fail(node.content):
+                failing_results.append(node)
+            else:
+                # proxy traceback for tests passing
+                passing_results.append(node)
+    if len(results) == 0:
+        errors = "\n".join([node.content for node in failing_results])
+        agent.append(
+            Message(
+                role="user",
+                content=textwrap.dedent(f"""
+                None of the attempted solutions passed the tests. Carefully look at why the solutions failed the tests, and use that information to generate better solutions.
+                {errors}
+                """),
+            )
+        )
+        agent.state.next_step["module_type"] = "prompter"
+        agent.state.next_step["args"]["mode"] = "synthesis"
+    else:
+        for result in passing_results:
+            filename = await save_output(result)
+            agent.append(result, metadata={"saved_output_filename": filename})
+        agent.state.next_step["module_type"] = "actor"
+        agent.state.next_step["args"]["mode"] = "revision"
 
 
 async def generate_comparison_claude_legacy(

@@ -236,7 +236,7 @@ async def _program_synthesis_prompter(
                     role="user",
                     content=textwrap.dedent(
                         """
-                        Given the above information, please provide a solution to the task in Python. Ensure that you write test functions that check that the output of the solution meet various criteria required in the task description. Make sure that the tests error if the output does not meet the required criteria. Assert that these test functions pass when the solution is run.
+                        Given the above information, please provide a solution to the task in Python. Ensure that you write test functions that check that the output of the solution meet various criteria required in the task description. Make sure that the tests error if the output does not meet the required criteria. Assert that these test functions pass when the solution is run. Do not catch AssertionError. 
 
                         Only write the full python script and nothing else. 
                         """

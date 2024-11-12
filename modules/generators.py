@@ -111,16 +111,16 @@ async def _program_synthesis_factory(
     num_programs = agent.state.next_step["args"]["num_programs"]
 
     wrapped_messages = [
-        {
-            "role": "system",
-            "content": claude_basic_system_prompt.format(
+        Message(
+            role="system",
+            content=claude_basic_system_prompt.format(
                 tools="\n".join(get_tool_descriptions(list(agent.toolkit_dict.keys())))
             ),
-        },
-        {
-            "role": "user",
-            "content": "Your current task is the following: " + agent.state.task_string,
-        },
+        ),
+        Message(
+            role="user",
+            content=f"Your current task is the following: {agent.state.task_string}",
+        ),
     ]
 
     for msg in messages:
@@ -133,19 +133,14 @@ async def _program_synthesis_factory(
         elif msg.role == "function":
             role = "user"
             content = f"<{msg.name}-output>{msg.content}</{msg.name}-output>"
-        wrapped_messages.append(
-            {
-                "role": role,
-                "content": content,
-            }
-        )
+        wrapped_messages.append(Message(role=role, content=content))
 
-    if wrapped_messages[-1]["role"] == "assistant":
+    if wrapped_messages[-1].role == "assistant":
         wrapped_messages.append(
-            {
-                "role": "user",
-                "content": "No function call was included in the last message. Please include a function call in the next message using the <[tool_name]> [args] </[tool_name]> syntax.",
-            }
+            Message(
+                role="user",
+                content="No function call was included in the last message. Please include a function call in the next message using the <[tool_name]> [args] </[tool_name]> syntax.",
+            )
         )
 
     match agent.state.next_step["args"]["mode"]:
