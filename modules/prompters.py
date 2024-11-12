@@ -195,7 +195,7 @@ async def _context_and_usage_aware(agent: Agent) -> None:
 
 
 async def _program_synthesis_prompter(
-    agent: Agent, num_programs=100, num_exploration_rounds_init=5
+    agent: Agent, num_programs=10, num_exploration_rounds_init=5
 ) -> None:
     node_ids = agent.state.get_path()
     messages = []
@@ -235,21 +235,11 @@ async def _program_synthesis_prompter(
             # init
             agent.state.next_step["args"]["num_rounds"] = num_exploration_rounds_init
             agent.state.next_step["args"]["mode"] = "exploration"
-        case "exploration":
+        case "exploration" if agent.state.next_step["args"]["num_rounds"] > 0:
             agent.state.next_step["args"]["num_rounds"] -= 1
-            if agent.state.next_step["args"]["num_rounds"] == 0:
-                agent.state.next_step["args"]["mode"] = "synthesis"
-        case "revision":
-            messages.append(
-                Message(
-                    role="user",
-                    content="Please look at the previous attempted solutions and their tests. If you don't see any bugs or mistakes in the solution, submit or score the solution based on the task instructions. If you do see bugs or mistakes, please generate a new solution that fixes those mistakes and submit or score that solution as per the instructions.",
-                    name=None,
-                    function_call=None,
-                )
-            )
-            agent.state.next_step["args"]["mode"] = "revision"
-        case "synthesis":
+        case "synthesis" | "exploration" if agent.state.next_step["args"][
+            "num_rounds"
+        ] == 0:
             messages.append(
                 Message(
                     role="user",
@@ -265,6 +255,16 @@ async def _program_synthesis_prompter(
                 )
             )
             agent.state.next_step["args"]["mode"] = "synthesis"
+        case "revision":
+            messages.append(
+                Message(
+                    role="user",
+                    content="Please look at the previous attempted solutions and their tests. If you don't see any bugs or mistakes in the solution, submit or score the solution based on the task instructions. If you do see bugs or mistakes, please generate a new solution that fixes those mistakes and submit or score that solution as per the instructions.",
+                    name=None,
+                    function_call=None,
+                )
+            )
+            agent.state.next_step["args"]["mode"] = "revision"
 
     # TODO: be more principled about the target_tok_length setting
     if "claude" in agent.settings.generator:
