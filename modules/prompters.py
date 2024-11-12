@@ -221,15 +221,6 @@ async def _program_synthesis_prompter(
     elif usage_fraction > (3 / 4):
         usage_message += " You should attempt to reach a final answer soon."
 
-    messages.append(
-        Message(
-            role="user",
-            content=usage_message,
-            name=None,
-            function_call=None,
-        )
-    )
-
     match agent.state.next_step["args"].get("mode"):
         case None:
             # init
@@ -245,7 +236,7 @@ async def _program_synthesis_prompter(
                     role="user",
                     content=textwrap.dedent(
                         """
-                        Given the above information, please provide a solution to the task in Python. Ensure that you write test functions that check that the output of the solution meet various criteria required in the task description. Make sure that the tests error if the output does not meet the required criteria. Write the code such that when it is executed, it also runs the test functions on the solution output, with asserts.
+                        Given the above information, please provide a solution to the task in Python. Ensure that you write test functions that check that the output of the solution meet various criteria required in the task description. Make sure that the tests error if the output does not meet the required criteria. Assert that these test functions pass when the solution is run.
 
                         Only write the full python script and nothing else. 
                         """
@@ -259,12 +250,24 @@ async def _program_synthesis_prompter(
             messages.append(
                 Message(
                     role="user",
-                    content="Please look at the previous attempted solutions and their tests. If you don't see any bugs or mistakes in the solution, submit or score the solution based on the task instructions. If you do see bugs or mistakes, please generate a new solution that fixes those mistakes and submit or score that solution as per the instructions.",
+                    content=textwrap.dedent("""
+                    Please look at the previous attempted solutions and their tests. If you don't see any bugs or mistakes in the solution, submit or score the solution based on the task instructions. If you do see bugs or mistakes, please generate a new solution that fixes those mistakes and submit or score that solution as per the instructions. 
+
+                    Write regression test functions and assert that they pass in the new solution."""),
                     name=None,
                     function_call=None,
                 )
             )
             agent.state.next_step["args"]["mode"] = "revision"
+
+    messages.append(
+        Message(
+            role="user",
+            content=usage_message,
+            name=None,
+            function_call=None,
+        )
+    )
 
     # TODO: be more principled about the target_tok_length setting
     if "claude" in agent.settings.generator:
