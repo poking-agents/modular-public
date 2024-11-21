@@ -37,7 +37,7 @@ async def test_score_fn(mocker: MockerFixture):
     output = await tools.score_fn(base.State(task_string="test task"))
 
     assert isinstance(output, str)
-    assert json.loads(output) == expected_output
+    assert json.loads(output) == expected_output.model_dump()
 
 
 @pytest.mark.asyncio
@@ -122,7 +122,7 @@ async def test_score_feedback(
     assert score_mock.call_count == 1, agent.state.nodes[
         agent.state.last_node_id
     ].message
-    expected_content = score_result.json()
+    expected_content = json.dumps(score_result.model_dump())
     if expected_output_file is not None:
         expected_content += f"\n\n[Note: the above tool output has been saved to {expected_output_file}]"
     assert agent.state.nodes[agent.state.last_node_id].message == base.Message(
