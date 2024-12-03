@@ -79,46 +79,79 @@ async def _basic(agent: Agent) -> None:
 
 def trim_message_list(messages: List[Message], target_tok_length: int) -> List[Message]:
     """
-    Trim messages by removing each message starting with the 5th message, until
-    the total token length is less than target_tok_length. Include a message in
-    the trimmed portion indicating that the sequence has been trimmed.
+    Trim messages by:
+    1. Always keeping the first 4 messages
+    2. Adding a trim notice message
+    3. Processing remaining messages in batches of 10 from the end
+    4. Including as many complete batches as possible within token limit
 
     Note that this function always uses tiktoken's cl100k base tokenizer, and
     disregards many details about how to use it for message formats.
     TODO: use the correct tokenizer for any given situation, and use it properly.
     """
     enc = tiktoken.get_encoding("cl100k_base")
+
+    def count_message_tokens(msg: Message) -> int:
+        return len(enc.encode(msg.content, disallowed_special=())) + len(
+            enc.encode(json.dumps(msg.function_call), disallowed_special=())
+        )
+
+    def create_trimmed_list(
+        header_msgs: List[Message], remaining_msgs: List[Message]
+    ) -> List[Message]:
+        return (
+            header_msgs
+            + [
+                Message(
+                    role="user",
+                    content=notice_retroactively_trimmed_prompt,
+                    function_call=None,
+                )
+            ]
+            + remaining_msgs
+        )
+
+    # Keep first 4 messages
+    header = messages[:4]
+    remaining = messages[4:]
+
+    # Calculate available tokens after header and trim notice
     tokens_to_use = target_tok_length - len(
         enc.encode(notice_retroactively_trimmed_prompt, disallowed_special=())
     )
-    for msg in messages[:4]:
-        tokens_to_use -= len(enc.encode(msg.content, disallowed_special=()))
-        tokens_to_use -= len(
-            enc.encode(json.dumps(msg.function_call), disallowed_special=())
-        )
+    tokens_to_use -= sum(count_message_tokens(msg) for msg in header)
 
-    tail_messages_to_use = []
-    for msg in messages[4:][::-1]:
-        tokens_to_use -= len(enc.encode(msg.content, disallowed_special=()))
-        tokens_to_use -= len(
-            enc.encode(json.dumps(msg.function_call), disallowed_special=())
-        )
-        if tokens_to_use < 0:
+    # Process remaining messages in reverse batches of 10
+    batches = [remaining[i : i + 10] for i in range(0, len(remaining), 10)][::-1]
+
+    # Try fitting complete batches
+    usable_batches = []
+    for batch in batches:
+        batch_tokens = sum(count_message_tokens(msg) for msg in batch)
+        if tokens_to_use >= batch_tokens:
+            tokens_to_use -= batch_tokens
+            usable_batches.append(batch)
+        else:
             break
-        tail_messages_to_use.append(msg)
-    if tokens_to_use >= 0:
+
+    # Return original if all fit
+    if len(usable_batches) == len(batches):
         return messages
 
-    return (
-        messages[:4]
-        + [
-            Message(
-                role="user",
-                content=notice_retroactively_trimmed_prompt,
-                function_call=None,
-            )
-        ]
-        + tail_messages_to_use[::-1]
+    # If no complete batch fits, try individual messages from the end
+    if not usable_batches:
+        tail_messages = []
+        for msg in reversed(remaining):
+            msg_tokens = count_message_tokens(msg)
+            if tokens_to_use < msg_tokens:
+                break
+            tokens_to_use -= msg_tokens
+            tail_messages.append(msg)
+        return create_trimmed_list(header, tail_messages[::-1])
+
+    # Return trimmed list with complete batches
+    return create_trimmed_list(
+        header, [msg for batch in reversed(usable_batches) for msg in batch]
     )
 
 
@@ -131,7 +164,7 @@ def _get_trimmed_message(node: Node, token_usage_fraction: float) -> Message:
     )
 
     needs_trimming = message.role == "function" and (
-        len(message.content) > 100_000
+        len(message.content) > 25_000
         or (len(message.content) > 8_000 and token_usage_fraction > 0.5)
     )
     if not needs_trimming:
