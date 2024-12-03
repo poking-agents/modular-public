@@ -2,6 +2,7 @@ import json
 import re
 from functools import partial
 from itertools import product
+from typing import Any, Callable, Coroutine
 
 from pyhooks.types import (
     MiddlemanResult,
@@ -79,7 +80,7 @@ async def generate_comparison_claude_legacy(
         }
     )
     generation = await hooks.generate(
-        messages=wrapped_messages,
+        messages=[OpenaiChatMessage(**msg) for msg in wrapped_messages],
         settings=middleman_settings,
     )
     return generation
@@ -134,7 +135,7 @@ async def generate_comparison_gpt(
 
 async def _compare_options_factory(
     agent: Agent,
-    middleman_settings: MiddlemanSettings = None,
+    middleman_settings: MiddlemanSettings | None = None,
     comparison_generator=None,
 ) -> None:
     if middleman_settings is None or comparison_generator is None:
@@ -144,6 +145,7 @@ async def _compare_options_factory(
 
     options = agent.state.next_step["args"]["options"]
     choice_is_good = False
+    choice = None
     while not choice_is_good:
         generation = await comparison_generator(
             agent, middleman_settings, compare_options_prompt_v1
@@ -257,10 +259,13 @@ async def _compare_and_regenerate_gpt_factory(
         generations = await comparison_generator(
             agent, middleman_settings_copy, compare_and_regenerate_prompt_v1
         )
-        for generation in generations.outputs:
+        for generation in generations.outputs or []:
             action = re.search(
                 r"<FINAL ACTION>[^\{]*(\{.+\})[^\}]*$", generation.completion, re.DOTALL
             )
+            if action is None:
+                continue
+
             try:
                 action = json.loads(action.group(1))
                 content = "" if "content" not in action else action["content"]
@@ -297,8 +302,11 @@ async def _compare_and_regenerate_gpt_factory(
 
 async def _assess_and_backtrack_gpt_factory(
     agent: Agent,
-    middleman_settings: MiddlemanSettings = None,
-    comparison_generator=None,
+    comparison_generator: Callable[
+        [Agent, MiddlemanSettings, str],
+        Coroutine[Any, Any, MiddlemanResult],
+    ],
+    middleman_settings: MiddlemanSettings | None = None,
 ) -> None:
     if middleman_settings is None:
         raise ValueError(
@@ -319,8 +327,10 @@ async def _assess_and_backtrack_gpt_factory(
         generations = await comparison_generator(
             agent, middleman_settings_copy, assess_and_backtrack_prompt
         )
+        if generations.outputs is None:
+            raise ValueError("No generations returned from comparison_generator")
+
         completion = generations.outputs[0].completion
-        print(completion)
 
         if "APPROVE" in completion:
             approved = True
@@ -391,8 +401,8 @@ for (model, desc, _), n_rounds in product(
 for model, desc, comparison_generator in models_and_comparison_generators:
     globals()[f"_assess_and_backtrack_gpt_{desc}"] = partial(
         _assess_and_backtrack_gpt_factory,
+        comparison_generator=comparison_generator,
         middleman_settings=MiddlemanSettings(
             n=1, model=model, temp=1, max_tokens=4096, stop=[]
         ),
-        comparison_generator=comparison_generator,
     )
