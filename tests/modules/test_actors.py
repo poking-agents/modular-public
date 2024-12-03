@@ -1,4 +1,4 @@
-import asyncio
+import asyncio # noqa: F401
 import json
 from typing import Any
 

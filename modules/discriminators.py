@@ -166,7 +166,7 @@ async def _compare_options_factory(
 
 
 async def _fixed_rating_factory(agent: Agent) -> None:
-    options: List[Message] = agent.state.next_step["args"]["options"]
+    options: list[Message] = agent.state.next_step["args"]["options"]
     fixed_rating = 0.1
 
     # serialize the content and the function call of each option into a RatingOption
