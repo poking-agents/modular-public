@@ -5,6 +5,7 @@ from typing import Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 from pyhooks import Actions, Hooks
+from pyhooks.types import RatingOption
 
 hooks = Hooks()
 actions = Actions()
@@ -59,7 +60,7 @@ class State(BaseModel):
     task_string: str
     nodes: List[Node] = Field(default_factory=list)
     last_node_id: int = -1
-    last_rating_options: Optional[List] = None
+    last_rating_options: Optional[List[RatingOption]] = None
     next_step: Dict = Field(default_factory=dict)
     token_limit: int = 500000
     token_usage: int = 0
@@ -75,8 +76,6 @@ class State(BaseModel):
     def parse_obj(cls, obj):
         if "next_step" in obj:
             obj["next_step"] = convert_to_custom_type(obj["next_step"])
-        if "extra" in obj:
-            obj["extra"] = convert_to_custom_type(obj["extra"])
         if "nodes" in obj:
             obj["nodes"] = convert_to_custom_type(obj["nodes"])
         return super().parse_obj(obj)

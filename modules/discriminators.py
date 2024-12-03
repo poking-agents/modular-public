@@ -4,7 +4,13 @@ from functools import partial
 from itertools import product
 from typing import Any, Callable, Coroutine
 
-from pyhooks.types import MiddlemanResult, MiddlemanSettings, OpenaiChatMessage
+from pyhooks.types import (
+    MiddlemanResult,
+    MiddlemanSettings,
+    OpenaiChatMessage,
+    RatingOption,
+    RatedOption,
+)
 
 from base import Agent, Message, hooks
 from templates import (
@@ -159,6 +165,77 @@ async def _compare_options_factory(
     agent.state.next_step["module_type"] = "actor"
 
 
+async def _fixed_rating_factory(agent: Agent) -> None:
+    options: list[Message] = agent.state.next_step["args"]["options"]
+    fixed_rating = 0.1
+
+    # serialize the content and the function call of each option into a RatingOption
+    def form_action(option: Message) -> str:
+        return json.dumps(
+            {
+                "content": option.content,
+                "function_call": option.function_call,
+            }
+        )
+
+    def form_message(option: RatedOption | RatingOption) -> Message:
+        # form_action will have serialized the content and function_call into a string
+        # human-written options will also be json serialized, so we can parse them
+        serialized_option = option.action
+        try:
+            option_dict = json.loads(serialized_option)
+            return Message(
+                role="assistant",
+                content=option_dict["content"],
+                function_call=option_dict["function_call"],
+            )
+        except json.JSONDecodeError as e:
+            hooks.log(
+                f"Error: {e}\nWhile decoding serialized option: {serialized_option}"
+            )
+            return Message(role="assistant", content=serialized_option)
+
+    node_metadata = {
+        "d__fixed_ratings__original_options": options,
+        "g__generation_metadata": agent.state.next_step["args"]["generation_metadata"],
+    }
+
+    # If branching on MP4 UI by choosing a different rating option, MP4 will start
+    # a new run with state.last_rating_options with only the option that was chosen.
+    # Then we'll want to append that to the state and just choose that, rather than
+    # logging a new rating set.
+    if (
+        agent.state.last_rating_options is not None
+        and len(agent.state.last_rating_options) == 1
+    ):
+        message_to_append = form_message(agent.state.last_rating_options[0])
+        node_metadata["d__rated_action"] = agent.state.last_rating_options[0]
+        agent.state.last_rating_options = None
+        agent.append(message_to_append, metadata=node_metadata)
+        agent.state.next_step["module_type"] = "actor"
+        return
+
+    rating_options = [
+        RatingOption(action=form_action(option), fixedRating=fixed_rating)
+        for option in options
+    ]
+    rating_template = "[Inert, should have no effect] {{&transcipt}} {{&actions}}"
+    transcript = "[Inert, should have no effect]"
+    # TODO: set as a dummy-but-permissioned model, or to the generation model
+    # "testing-dummy:4096:cl100k_base" did not work
+    rating_model = "gpt-4o-mini-2024-07-18"
+    rated_action: RatedOption = await hooks.rate_options(
+        rating_template=rating_template,
+        transcript=transcript,
+        options=rating_options,
+        rating_model=rating_model,
+    )
+    message_to_append = form_message(rated_action)
+    node_metadata["d__rated_action"] = rated_action
+    agent.append(message_to_append, metadata=node_metadata)
+    agent.state.next_step["module_type"] = "actor"
+
+
 async def _compare_and_regenerate_gpt_factory(
     agent: Agent,
     n_rounds: int = 1,
@@ -290,6 +367,7 @@ models_and_comparison_generators = [
     ("claude-3-sonnet-20240229", "c3s", generate_comparison_claude_legacy),
     ("claude-3-haiku-20240229", "c3h", generate_comparison_claude_legacy),
     ("claude-3-5-sonnet-20240620", "c3.5s", generate_comparison_claude_legacy),
+    ("claude-3-5-sonnet-20241022", "c3.5sv2", generate_comparison_claude_legacy),
 ]
 for model, desc, comparison_generator in models_and_comparison_generators:
     globals()[f"_compare_options_{desc}"] = partial(
@@ -298,6 +376,14 @@ for model, desc, comparison_generator in models_and_comparison_generators:
             n=1, model=model, temp=1, max_tokens=3600, stop=["</FINAL CHOICE>"]
         ),
         comparison_generator=comparison_generator,
+    )
+
+
+for (model, desc, _), n_rounds in product(
+    models_and_comparison_generators, range(1, 6)
+):
+    globals()[f"_fixed_rating_{desc}"] = partial(
+        _fixed_rating_factory,
     )
 
 # TODO: Make compatible with claude_legacy format (currently the resulting claude_legacy compatible functions are not intended to work)

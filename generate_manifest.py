@@ -6,7 +6,9 @@ TOOLKITS = ["_basic", "_basic_vision", "_vision_double_return"]
 PROMPTERS = ["_basic", "_context_and_usage_aware"]
 
 GENERATORS = []
-for model, n in product(["c3o", "c3s", "c3h", "c3.5s"], [1, 2, 4, 8, 16, 32, 64]):
+for model, n in product(
+    ["c3o", "c3s", "c3h", "c3.5s", "c3.5sv2"], [1, 2, 4, 8, 16, 32, 64]
+):
     GENERATORS.append(f"_claude_legacy_{n}x{model}")
 for gpt, n in product(["4", "4t", "4o", "4om", "o1p", "o1m"], [1, 2, 4, 8, 16, 32, 64]):
     GENERATORS.append(f"_gpt_basic_{n}x{gpt}")
@@ -14,7 +16,35 @@ for gpt, n in product(["4", "4t", "4o", "4om", "o1p", "o1m"], [1, 2, 4, 8, 16, 3
 DISCRIMINATORS = ["_basic"]
 DISCRIMINATORS += [
     f"_compare_options_{model}"
-    for model in ["4", "4t", "4o", "4om", "o1p", "o1m", "c3o", "c3s", "c3h", "c3.5s"]
+    for model in [
+        "4",
+        "4t",
+        "4o",
+        "4om",
+        "o1p",
+        "o1m",
+        "c3o",
+        "c3s",
+        "c3h",
+        "c3.5s",
+        "c3.5sv2",
+    ]
+]
+DISCRIMINATORS += [
+    f"_fixed_rating_{model}"
+    for model in [
+        "4",
+        "4t",
+        "4o",
+        "4om",
+        "o1p",
+        "o1m",
+        "c3o",
+        "c3s",
+        "c3h",
+        "c3.5s",
+        "c3.5sv2",
+    ]
 ]
 DISCRIMINATORS += [
     f"_compare_and_regenerate_{n_rounds}_rounds_gpt_{gpt}"
@@ -35,6 +65,7 @@ MANIFEST = {
             "generator": {"type": "string"},
             "discriminator": {"type": "string"},
             "actor": {"type": "string"},
+            "autosubmit": {"type": "boolean"},
         },
         "additionalProperties": False,
         "required": ["toolkit", "prompter", "generator", "discriminator", "actor"],
@@ -62,6 +93,7 @@ MANIFEST = {
                                     "properties": {
                                         "name": {"type": "string"},
                                         "arguments": {"type": "string"},
+                                        "type": {"type": "string"},
                                     },
                                     "additionalProperties": False,
                                     "required": ["name", "arguments"],
@@ -85,6 +117,10 @@ MANIFEST = {
                 },
                 "additionalProperties": False,
                 "required": ["module_type", "args"],
+            },
+            "submissions": {
+                "type": "array",
+                "items": {"type": "string"},
             },
             "token_limit": {"type": "integer"},
             "token_usage": {"type": "integer"},

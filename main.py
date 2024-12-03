@@ -127,11 +127,14 @@ async def main(*args):
         settings = Settings(**json.loads(f.read()))
 
     if os.environ.get("STARTING_STATE"):
-        state = State.parse_raw(os.environ["STARTING_STATE"])
-        await replay_history(state, settings)
+        state = State.parse_obj(json.loads(os.environ["STARTING_STATE"])["state"])
+        if not (os.environ.get("SKIP_REPLAY")):
+            await replay_history(state, settings)
     elif os.environ.get("STARTING_STATE_PATH"):
-        state = State.parse_file(os.environ["STARTING_STATE_PATH"])
-        await replay_history(state, settings)
+        with open(os.environ["STARTING_STATE_PATH"]) as f:
+            state = State.parse_obj(json.load(f)["state"])
+        if not (os.environ.get("SKIP_REPLAY")):
+            await replay_history(state, settings)
 
     agent = Agent(
         state=state,
@@ -164,7 +167,9 @@ async def main(*args):
         agent.state.token_limit = usage_info.usageLimits.tokens
         agent.state.time_usage = usage_info.usage.total_seconds
         agent.state.time_limit = usage_info.usageLimits.total_seconds
-        hooks.save_state(trim_state(agent.state.dict()))
+        hooks.save_state(
+            {"state": trim_state(agent.state.dict()), "settings": agent.settings.dict()}
+        )
         await agent.autosubmit()
 
 
