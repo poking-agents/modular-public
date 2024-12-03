@@ -25,7 +25,6 @@ async def _claude_legacy_factory(
 
     middleman_settings_copy = copy.deepcopy(middleman_settings)
     middleman_settings_copy.stop = [f"</{tool}" for tool in agent.toolkit_dict]
-    messages = agent.state.next_step["args"]["messages"]
     wrapped_messages = [
         {
             "role": "system",
