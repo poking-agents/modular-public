@@ -23,6 +23,13 @@ async def _claude_legacy_factory(
 
     messages = agent.state.next_step["args"]["messages"]
 
+    user_messages = [msg for msg in messages if msg.role == "user"]
+    last_two_user_indices = (
+        {messages.index(msg) for msg in user_messages[-2:]}
+        if len(user_messages) >= 2
+        else set()
+    )
+
     middleman_settings_copy = copy.deepcopy(middleman_settings)
     middleman_settings_copy.stop = [f"</{tool}" for tool in agent.toolkit_dict]
     wrapped_messages = [
@@ -37,13 +44,25 @@ async def _claude_legacy_factory(
             "content": "Your current task is the following: " + agent.state.task_string,
         },
     ]
-    for msg in messages:
+    for i, msg in enumerate(messages):
         role = msg.role
         content = msg.content
+
+        # Add cache control for last two user messages
+        if msg.role == "user" and i in last_two_user_indices:
+            content = {
+                "type": "text",
+                "text": content,
+                "cache_control": {"type": "ephemeral"},
+            }
+
         if msg.function_call is not None:
             tool_name = msg.function_call["name"]
             tool_args = msg.function_call["arguments"]
-            content += f"<{tool_name}>{tool_args}</{tool_name}>"
+            if isinstance(content, dict):  # If we added cache control
+                content["text"] += f"<{tool_name}>{tool_args}</{tool_name}>"
+            else:
+                content += f"<{tool_name}>{tool_args}</{tool_name}>"
         elif msg.role == "function":
             role = "user"
             content = f"<{msg.name}-output>{msg.content}</{msg.name}-output>"
