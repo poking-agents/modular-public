@@ -74,6 +74,9 @@ async def _claude_legacy_factory(
     for msg in reversed(wrapped_messages):
         if msg["role"] == "user":
             text_content = msg["content"]
+            assert isinstance(text_content, str), (
+                "message content must be a string, but is of type " + type(text_content)
+            )
             msg["content"] = [
                 {
                     "type": "text",
