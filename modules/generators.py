@@ -45,7 +45,7 @@ async def _claude_legacy_factory(
             "content": "Your current task is the following: " + agent.state.task_string,
         },
     ]
-    for i, msg in enumerate(messages):
+    for msg in messages:
         role = msg.role
         content = msg.content
         if msg.function_call is not None:
