@@ -23,13 +23,6 @@ async def _claude_legacy_factory(
 
     messages = agent.state.next_step["args"]["messages"]
 
-    user_messages = [msg for msg in messages if msg.role == "user"]
-    last_two_user_indices = (
-        {messages.index(msg) for msg in user_messages[-2:]}
-        if len(user_messages) >= 2
-        else set()
-    )
-
     middleman_settings_copy = copy.deepcopy(middleman_settings)
     middleman_settings_copy.stop = [f"</{tool}" for tool in agent.toolkit_dict]
     wrapped_messages = [
@@ -55,31 +48,17 @@ async def _claude_legacy_factory(
     for i, msg in enumerate(messages):
         role = msg.role
         content = msg.content
-
-        # Add cache control for last two user messages
-        if msg.role == "user" and i in last_two_user_indices:
-            content = [
-                {
-                    "type": "text",
-                    "text": content,
-                    "cache_control": {"type": "ephemeral"},
-                }
-            ]
-
         if msg.function_call is not None:
             tool_name = msg.function_call["name"]
             tool_args = msg.function_call["arguments"]
-            if isinstance(content, dict):  # If we added cache control
-                content["text"] += f"<{tool_name}>{tool_args}</{tool_name}>"
-            else:
-                content += f"<{tool_name}>{tool_args}</{tool_name}>"
+            content += f"<{tool_name}>{tool_args}</{tool_name}>"
         elif msg.role == "function":
             role = "user"
             content = f"<{msg.name}-output>{msg.content}</{msg.name}-output>"
         wrapped_messages.append(
             {
                 "role": role,
-                "content": content,  # type: ignore[reportArgumentType]
+                "content": content,
             }
         )
     if wrapped_messages[-1]["role"] == "assistant":
@@ -89,6 +68,23 @@ async def _claude_legacy_factory(
                 "content": "No function call was included in the last message. Please include a function call in the next message using the <[tool_name]> [args] </[tool_name]> syntax.",
             }
         )
+
+    # add cache control to last 2 user messages
+    cache_control_breakpoints = 0
+    for msg in reversed(wrapped_messages):
+        if msg["role"] == "user":
+            text_content = msg["content"]
+            msg["content"] = [
+                {
+                    "type": "text",
+                    "text": text_content,
+                    "cache_control": {"type": "ephemeral"},
+                }
+            ]
+            cache_control_breakpoints += 1
+        if cache_control_breakpoints >= 2:
+            break
+
     generations = await hooks.generate(
         messages=[OpenaiChatMessage(**msg) for msg in wrapped_messages],
         settings=middleman_settings_copy,
