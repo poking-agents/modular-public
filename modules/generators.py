@@ -69,7 +69,7 @@ async def _claude_legacy_factory(
         wrapped_messages.append(
             {
                 "role": role,
-                "content": content,
+                "content": content,  # type: ignore[reportArgumentType]
             }
         )
     if wrapped_messages[-1]["role"] == "assistant":
