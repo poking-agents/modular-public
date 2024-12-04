@@ -35,9 +35,17 @@ async def _claude_legacy_factory(
     wrapped_messages = [
         {
             "role": "system",
-            "content": claude_basic_system_prompt.format(
-                tools="\n".join(get_tool_descriptions(list(agent.toolkit_dict.keys())))
-            ),
+            "content": [
+                {
+                    "type": "text",
+                    "text": claude_basic_system_prompt.format(
+                        tools="\n".join(
+                            get_tool_descriptions(list(agent.toolkit_dict.keys()))
+                        )
+                    ),
+                    "cache_control": {"type": "ephemeral"},
+                }
+            ],
         },
         {
             "role": "user",
@@ -50,11 +58,13 @@ async def _claude_legacy_factory(
 
         # Add cache control for last two user messages
         if msg.role == "user" and i in last_two_user_indices:
-            content = {
-                "type": "text",
-                "text": content,
-                "cache_control": {"type": "ephemeral"},
-            }
+            content = [
+                {
+                    "type": "text",
+                    "text": content,
+                    "cache_control": {"type": "ephemeral"},
+                }
+            ]
 
         if msg.function_call is not None:
             tool_name = msg.function_call["name"]
