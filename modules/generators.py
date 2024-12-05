@@ -75,7 +75,7 @@ async def _claude_legacy_factory(
         if msg["role"] == "user":
             text_content = msg["content"]
             assert isinstance(text_content, str), (
-                "message content must be a string, but is of type " + type(text_content)
+                f"message content must be a string, but is of type {type(text_content)}"
             )
             msg["content"] = [
                 {
