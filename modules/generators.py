@@ -12,6 +12,7 @@ from templates import (
     gpt_basic_system_prompt,
 )
 
+ANTHROPIC_STOP_SEQUENCE_LIMIT = 4
 
 async def _claude_legacy_factory(
     agent: Agent, middleman_settings: Optional[MiddlemanSettings] = None
@@ -24,7 +25,10 @@ async def _claude_legacy_factory(
     messages = agent.state.next_step["args"]["messages"]
 
     middleman_settings_copy = copy.deepcopy(middleman_settings)
-    middleman_settings_copy.stop = [f"</{tool}" for tool in agent.toolkit_dict]
+    middleman_settings_copy.stop = [f"</{tool}" for tool in agent.toolkit_dict][
+        :ANTHROPIC_STOP_SEQUENCE_LIMIT
+    ]
+    messages = agent.state.next_step["args"]["messages"]
     wrapped_messages = [
         {
             "role": "system",
