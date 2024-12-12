@@ -146,6 +146,7 @@ async def main(*args):
         toolkit_dict = getattr(tools, agent.settings.toolkit)
         if task.scoring.intermediate:
             toolkit_dict = {**toolkit_dict, **tools.scoring_tools}
+            del toolkit_dict["submit"]
         agent.set_toolkit_dict(toolkit_dict)
         # Almost always the agent should follow the order below.
         # Usually a prompter will conclude by setting the next_step to be
