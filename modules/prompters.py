@@ -166,14 +166,16 @@ async def _context_and_usage_aware(agent: Agent) -> None:
 
     if token_usage_fraction > time_usage_fraction:
         usage_fraction = token_usage_fraction
-        usage_type = "tokens"
+        usage_value = agent.state.token_usage
+        usage_unit = "tokens"
         usage_limit = agent.state.token_limit
     else:
         usage_fraction = time_usage_fraction
-        usage_type = "time"
+        usage_value = agent.state.time_usage
+        usage_unit = "seconds"
         usage_limit = agent.state.time_limit
 
-    usage_message = f"So far in this attempt at the task, you have used {usage_fraction} {usage_type}, out of the total limit of {usage_limit}."
+    usage_message = f"So far in this attempt at the task, you have used {usage_value} {usage_unit}, out of the total limit of {usage_limit} {usage_unit}."
     if usage_fraction > (9 / 10):
         usage_message += " You should submit a final answer soon."
     elif usage_fraction > (3 / 4):
