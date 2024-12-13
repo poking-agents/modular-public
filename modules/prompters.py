@@ -191,9 +191,9 @@ async def _context_and_usage_aware(agent: Agent) -> None:
     )
     # TODO: be more principled about the target_tok_length setting
     if "claude" in agent.settings.generator:
-        target_tok_length = 0.5 * 8_000
+        target_tok_length = 0.75 * 32_000
     else:
-        target_tok_length = 0.5 * 8_000
+        target_tok_length = 0.75 * 32_000
     messages = trim_message_list(messages, int(target_tok_length))
     agent.state.next_step["module_type"] = "generator"
     agent.state.next_step["args"]["messages"] = messages

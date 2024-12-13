@@ -107,7 +107,7 @@ claude_legacy_compat_models = [
     ("claude-3-haiku-20240307", "c3h"),
     ("claude-3-5-sonnet-20240620", "c3.5s"),
     ("claude-3-5-sonnet-20241022", "c3.5sv2"),
-    ("gpt-4-0314", "4"),
+    ("gpt-4-32k-0314", "4"),
 ]
 for model_pair, n in product(claude_legacy_compat_models, [1, 2, 4, 8, 16, 32, 64]):
     model, desc = model_pair
@@ -188,7 +188,7 @@ async def _gpt_basic_factory(
 
 
 gpt_models = [
-    ("gpt-4-0314", "4"),
+    ("gpt-4-32k-0314", "4"),
     ("gpt-4-turbo-2024-04-09", "4t"),
     ("gpt-4o-2024-05-13", "4o"),
     ("gpt-4o-mini-2024-07-18", "4om"),
