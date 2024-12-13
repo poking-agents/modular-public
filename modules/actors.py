@@ -17,7 +17,7 @@ async def get_result_message_simple(agent: Agent) -> Optional[Message]:
     output = ""
     if tool_name not in agent.toolkit_dict:
         return Message(
-            role="function",
+            role="function", # OpenAI API expects function after a function call
             content=reject_command_prompt,
             name=tool_name,
             function_call=None,
@@ -36,7 +36,7 @@ async def get_result_message_simple(agent: Agent) -> Optional[Message]:
     if not tool_params:
         if agent_args:
             return Message(
-                role="function",
+                role="function", # OpenAI API expects function after a function call
                 content=reject_arguments_prompt,
                 name=tool_name,
                 function_call=None,
