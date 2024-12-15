@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import json
 from pathlib import Path
@@ -66,6 +67,8 @@ score_log_fn_object = {
 
 
 async def return_fn(_state: State, submission: Any = None) -> None:
+    hooks.log("Agent is trying to submit, waiting")
+    await asyncio.sleep("inf")
     if isinstance(submission, dict):
         submission = json.dumps(submission)
     elif not isinstance(submission, str):
