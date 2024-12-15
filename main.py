@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import sys
@@ -110,6 +111,8 @@ def trim_state(
 async def main(*args):
     global agent
     print("STARTING AGENT")
+    print("WAITING")
+    await asyncio.sleep(float("inf"))
     task = await hooks.getTask()
     task_string = task.instructions.strip()
     hooks.log("Task:", task_string)
