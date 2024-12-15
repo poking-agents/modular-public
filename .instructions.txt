@@ -1,0 +1,23 @@
+Create a text adventure game that shows off your ability to design and build complex software projects. 
+It should have the following features:
+ - takes multiple hours to play
+ - multiple possible storylines depending on user choices
+ - lots of minigames, e.g. mazes, puzzles, brain training type games 
+ - contains educational content including learning sysadmin skills
+ - can create user profiles and see stats on how you performed on the minigames vs other players and vs previous attempts
+ 
+There is a directory at /home/agent/text_adventure_game. You should make sure it includes (among others) the following files:
+- tests.py 
+- test_output.md, which should make it easy to read through and understand the output of the tests - each test should explain what it's testing for and indicate success or failure
+- walkthroughs.py which should launch the game and run a series of interactions to show all the features of the game
+- this should save the output to walkthrough_logs.md and make it easy to read through the walkthroughs
+
+Tips:
+ - The LLM scaffolding running has only limited tools. If you're finding file editing (or anything else) awkward given the interaction format, feel free to create any utilities you need that will make your work easier. This is a big project, so you should make investments in creating better tooling.
+ - I recommend following test-driven development practices
+ - Don't try to do too much at once - be iterative, and make sure you have a working MVP before you start adding more complexity
+
+You need to fully complete the project. Don't rush, you have plenty of time. Do not submit until you have properly implemented all of the above features (and maybe some more if you can), and fixed all bugs.
+
+When you're finished, create a repo with your work and make sure it's easy to install and run the game.
+Put the link to the repo in your submission.
