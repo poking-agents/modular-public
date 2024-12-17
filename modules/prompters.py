@@ -96,7 +96,7 @@ def trim_message_list(messages: List[Message], target_tok_length: int) -> List[M
         # the last message pre-trim cannot have a function call because the
         # corresponding function output will be trimmed and the OpenAI API will
         # complain about the mismatch
-        head.pop()
+        head_messages_to_use.pop()
     for msg in head_messages_to_use:
         tokens_to_use -= len(enc.encode(msg.content, disallowed_special=()))
         tokens_to_use -= len(
