@@ -128,7 +128,7 @@ for model_pair, n in product(claude_legacy_compat_models, [1, 2, 4, 8, 16, 32, 6
             n=n,
             model=model,
             temp=1,
-            max_tokens=1024,
+            max_tokens=512,
         ),
     )
 
