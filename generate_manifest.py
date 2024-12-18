@@ -7,7 +7,8 @@ PROMPTERS = ["_basic", "_context_and_usage_aware"]
 
 GENERATORS = []
 for model, n in product(
-    ["c3o", "c3s", "c3h", "c3.5s", "c3.5sv2"], [1, 2, 4, 8, 16, 32, 64]
+    ["c3o", "c3s", "c3h", "c3.5s", "c3.5sv2", "g3.5ti", "d2"],
+    [1, 2, 4, 8, 16, 32, 64],
 ):
     GENERATORS.append(f"_claude_legacy_{n}x{model}")
 for gpt, n in product(["4", "4t", "4o", "4om", "o1p", "o1m"], [1, 2, 4, 8, 16, 32, 64]):

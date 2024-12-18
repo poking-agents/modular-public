@@ -104,7 +104,7 @@ def trim_message_list(messages: List[Message], target_tok_length: int) -> List[M
         )
 
     tail_messages_to_use = []
-    for msg in messages[len(head_messages_to_use):][::-1]:
+    for msg in messages[len(head_messages_to_use) :][::-1]:
         tokens_to_use -= len(enc.encode(msg.content, disallowed_special=()))
         tokens_to_use -= len(
             enc.encode(json.dumps(msg.function_call), disallowed_special=())
@@ -200,10 +200,11 @@ async def _context_and_usage_aware(agent: Agent) -> None:
         )
     )
     # TODO: be more principled about the target_tok_length setting
-    if "claude" in agent.settings.generator:
-        target_tok_length = 0.75 * 200_000
+    # if model is davinci-002, target_tok_length is 0.75 * 16_000, for g3.5ti, it's 0.5 * 4_000
+    if "d2" in agent.settings.generator:
+        target_tok_length = 0.75 * 16_000
     else:
-        target_tok_length = 0.75 * 128_000
+        target_tok_length = 0.5 * 4_000
     messages = trim_message_list(messages, int(target_tok_length))
     agent.state.next_step["module_type"] = "generator"
     agent.state.next_step["args"]["messages"] = messages
