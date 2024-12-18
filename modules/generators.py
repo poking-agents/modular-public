@@ -73,7 +73,7 @@ async def _claude_legacy_factory(
     messages = [OpenaiChatMessage(**msg) for msg in wrapped_messages]
 
     # convert the messages into a prompt format, a single text string
-    prompt = "\n".join([f"{msg.role}: {msg.content}" for msg in messages])
+    prompt = "\n\n".join([f"{msg.role}: {msg.content}" for msg in messages])
     prompt += "\nassistant:"
     generations = await hooks.generate(
         prompt=prompt,
@@ -128,7 +128,7 @@ for model_pair, n in product(claude_legacy_compat_models, [1, 2, 4, 8, 16, 32, 6
             n=n,
             model=model,
             temp=1,
-            max_tokens=4096,
+            max_tokens=1024,
         ),
     )
 
