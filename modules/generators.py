@@ -1,11 +1,11 @@
 import copy
 from functools import partial
 from itertools import product
-from typing import Optional, cast
+from typing import List, Optional, cast
 
 from pyhooks.types import MiddlemanSettings, OpenaiChatMessage
 import anthropic
-from anthropic.types import Message as AnthropicMessage
+from anthropic.types import MessageParam
 
 from base import Agent, Message, hooks
 from templates import (
@@ -37,9 +37,9 @@ async def _claude_legacy_factory(
         tools="\n".join(get_tool_descriptions(list(agent.toolkit_dict.keys())))
     )
 
-    messages = []
+    messages: List[MessageParam] = []
     messages.append(
-        AnthropicMessage(
+        MessageParam(
             role="user",
             content="Your current task is the following: " + agent.state.task_string,
         )
@@ -58,12 +58,12 @@ async def _claude_legacy_factory(
             role = "user"
             content = f"<{msg.name}-output>{msg.content}</{msg.name}-output>"
 
-        messages.append(AnthropicMessage(role=role, content=content))
+        messages.append(MessageParam(role=role, content=content))
 
     # Add prompt for function call if needed
-    if messages and messages[-1].role == "assistant":
+    if messages and messages[-1]["role"] == "assistant":
         messages.append(
-            AnthropicMessage(
+            MessageParam(
                 role="user",
                 content="No function call was included in the last message. Please include a function call in the next message using the <[tool_name]> [args] </[tool_name]> syntax.",
             )
@@ -74,15 +74,17 @@ async def _claude_legacy_factory(
         model=middleman_settings.model,
         messages=messages,
         system=system_content,
-        max_tokens=middleman_settings.max_tokens,
+        max_tokens=middleman_settings.max_tokens or 4096,
         temperature=middleman_settings.temp,
         stop_sequences=stop_sequences,
-        n=middleman_settings.n,
     )
 
     # Process response
     processed_messages = []
     for message in response.content:
+        if message.type != "text":
+            raise ValueError(f"Unsupported message type: {message.type}")
+
         generation = message.text
         last_tool_loc, last_tool = max(
             [(generation.find(f"<{tool}>"), tool) for tool in agent.toolkit_dict]
