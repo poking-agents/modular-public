@@ -200,7 +200,6 @@ async def _context_and_usage_aware(agent: Agent) -> None:
         )
     )
     # TODO: be more principled about the target_tok_length setting
-    # if model is davinci-002, target_tok_length is 0.75 * 16_000, for g3.5ti, it's 0.5 * 4_000
     if "d2" in agent.settings.generator:
         target_tok_length = 0.75 * 16_000
     else:
