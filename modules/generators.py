@@ -16,6 +16,7 @@ from templates import (
 
 ANTHROPIC_STOP_SEQUENCE_LIMIT = 4
 
+
 async def _claude_legacy_factory(
     agent: Agent, middleman_settings: Optional[MiddlemanSettings] = None
 ) -> None:
@@ -25,26 +26,30 @@ async def _claude_legacy_factory(
         )
 
     client = anthropic.AsyncClient()
-    
+
     # Prepare stop sequences
-    stop_sequences = [f"</{tool}" for tool in agent.toolkit_dict][:ANTHROPIC_STOP_SEQUENCE_LIMIT]
-    
+    stop_sequences = [f"</{tool}" for tool in agent.toolkit_dict][
+        :ANTHROPIC_STOP_SEQUENCE_LIMIT
+    ]
+
     # Prepare system and messages
     system_content = claude_basic_system_prompt.format(
         tools="\n".join(get_tool_descriptions(list(agent.toolkit_dict.keys())))
     )
-    
+
     messages = []
-    messages.append(AnthropicMessage(
-        role="user",
-        content="Your current task is the following: " + agent.state.task_string
-    ))
+    messages.append(
+        AnthropicMessage(
+            role="user",
+            content="Your current task is the following: " + agent.state.task_string,
+        )
+    )
 
     # Convert existing messages
     for msg in agent.state.next_step["args"]["messages"]:
         content = msg.content
         role = "assistant" if msg.role == "assistant" else "user"
-        
+
         if msg.function_call is not None:
             tool_name = msg.function_call["name"]
             tool_args = msg.function_call["arguments"]
@@ -52,15 +57,17 @@ async def _claude_legacy_factory(
         elif msg.role == "function":
             role = "user"
             content = f"<{msg.name}-output>{msg.content}</{msg.name}-output>"
-            
+
         messages.append(AnthropicMessage(role=role, content=content))
 
     # Add prompt for function call if needed
     if messages and messages[-1].role == "assistant":
-        messages.append(AnthropicMessage(
-            role="user",
-            content="No function call was included in the last message. Please include a function call in the next message using the <[tool_name]> [args] </[tool_name]> syntax."
-        ))
+        messages.append(
+            AnthropicMessage(
+                role="user",
+                content="No function call was included in the last message. Please include a function call in the next message using the <[tool_name]> [args] </[tool_name]> syntax.",
+            )
+        )
 
     # Make API call
     response = await client.messages.create(
@@ -70,7 +77,7 @@ async def _claude_legacy_factory(
         max_tokens=middleman_settings.max_tokens,
         temperature=middleman_settings.temp,
         stop_sequences=stop_sequences,
-        n=middleman_settings.n
+        n=middleman_settings.n,
     )
 
     # Process response
@@ -80,7 +87,7 @@ async def _claude_legacy_factory(
         last_tool_loc, last_tool = max(
             [(generation.find(f"<{tool}>"), tool) for tool in agent.toolkit_dict]
         )
-        
+
         content = generation
         function_call = None
         if last_tool_loc != -1:
@@ -90,12 +97,14 @@ async def _claude_legacy_factory(
                 "name": last_tool,
                 "arguments": raw_function_call.removesuffix(f"</{last_tool}>"),
             }
-            
-        processed_messages.append(Message(
-            role="assistant",
-            content=content,
-            function_call=function_call,
-        ))
+
+        processed_messages.append(
+            Message(
+                role="assistant",
+                content=content,
+                function_call=function_call,
+            )
+        )
 
     # Update agent state
     agent.state.next_step["module_type"] = "discriminator"
