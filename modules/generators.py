@@ -29,6 +29,10 @@ async def _claude_legacy_factory(
     middleman_settings_copy.stop = [f"</{tool}" for tool in agent.toolkit_dict][
         :ANTHROPIC_STOP_SEQUENCE_LIMIT
     ]
+    # for gpt-3.5-turbo-instruct, and davinci-002, add a stop sequence for the "user:"
+    # davinci-002 can have at most 4 stop sequences
+    if middleman_settings.model in ["gpt-3.5-turbo-instruct", "davinci-002"]:
+        middleman_settings_copy.stop = ["user:", "</bash", "</python", "</submit"]
     messages = agent.state.next_step["args"]["messages"]
     wrapped_messages = [
         {
@@ -65,8 +69,13 @@ async def _claude_legacy_factory(
                 "content": "No function call was included in the last message. Please include a function call in the next message using the <[tool_name]> [args] </[tool_name]> syntax.",
             }
         )
+    messages = [OpenaiChatMessage(**msg) for msg in wrapped_messages]
+
+    # convert the messages into a prompt format, a single text string
+    prompt = "\n".join([f"{msg.role}: {msg.content}" for msg in messages])
+    prompt += "\nassistant:"
     generations = await hooks.generate(
-        messages=[OpenaiChatMessage(**msg) for msg in wrapped_messages],
+        prompt=prompt,
         settings=middleman_settings_copy,
     )
     if generations.outputs is None:
@@ -107,6 +116,8 @@ claude_legacy_compat_models = [
     ("claude-3-haiku-20240307", "c3h"),
     ("claude-3-5-sonnet-20240620", "c3.5s"),
     ("claude-3-5-sonnet-20241022", "c3.5sv2"),
+    ("gpt-3.5-turbo-instruct", "g3.5ti"),
+    ("davinci-002", "d2"),
 ]
 for model_pair, n in product(claude_legacy_compat_models, [1, 2, 4, 8, 16, 32, 64]):
     model, desc = model_pair
