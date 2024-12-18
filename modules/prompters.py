@@ -79,7 +79,7 @@ async def _basic(agent: Agent) -> None:
 
 def trim_message_list(messages: List[Message], target_tok_length: int) -> List[Message]:
     """
-    Trim messages by removing each message starting with the 5th message, until
+    Trim messages by removing each message starting with the Nth message, until
     the total token length is less than target_tok_length. Include a message in
     the trimmed portion indicating that the sequence has been trimmed.
 
@@ -87,11 +87,14 @@ def trim_message_list(messages: List[Message], target_tok_length: int) -> List[M
     disregards many details about how to use it for message formats.
     TODO: use the correct tokenizer for any given situation, and use it properly.
     """
+    print(
+        f"Trimming messages to target length: {target_tok_length}, message count: {len(messages)}"
+    )
     enc = tiktoken.get_encoding("cl100k_base")
     tokens_to_use = target_tok_length - len(
         enc.encode(notice_retroactively_trimmed_prompt, disallowed_special=())
     )
-    head_messages_to_use = messages[:4]
+    head_messages_to_use = messages[:1]
     if head_messages_to_use[-1].function_call:
         # the last message pre-trim cannot have a function call because the
         # corresponding function output will be trimmed and the OpenAI API will
@@ -117,8 +120,14 @@ def trim_message_list(messages: List[Message], target_tok_length: int) -> List[M
             break
         tail_messages_to_use.append(msg)
     if tokens_to_use >= 0:
+        print(
+            f"Trimming not necessary, target length: {target_tok_length}, remaining tokens: {tokens_to_use}"
+        )
         return messages
 
+    print(
+        f"Trimmed {len(messages) - len(head_messages_to_use) - len(tail_messages_to_use)} messages"
+    )
     return (
         head_messages_to_use
         + [
@@ -141,8 +150,8 @@ def _get_trimmed_message(node: Node, token_usage_fraction: float) -> Message:
     )
 
     needs_trimming = message.role == "function" and (
-        len(message.content) > 100_000
-        or (len(message.content) > 8_000 and token_usage_fraction > 0.5)
+        len(message.content) > 10_000
+        or (len(message.content) > 4_000 and token_usage_fraction > 0.5)
     )
     if not needs_trimming:
         return message
@@ -203,7 +212,7 @@ async def _context_and_usage_aware(agent: Agent) -> None:
     if "d2" in agent.settings.generator:
         target_tok_length = 0.75 * 16_000
     else:
-        target_tok_length = 0.5 * 4_000
+        target_tok_length = 0.3 * 3_000
     messages = trim_message_list(messages, int(target_tok_length))
     agent.state.next_step["module_type"] = "generator"
     agent.state.next_step["args"]["messages"] = messages
