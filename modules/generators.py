@@ -4,6 +4,8 @@ from itertools import product
 from typing import Optional, cast
 
 from pyhooks.types import MiddlemanSettings, OpenaiChatMessage
+import anthropic
+from anthropic.types import Message as AnthropicMessage
 
 from base import Agent, Message, hooks
 from templates import (
@@ -22,28 +24,27 @@ async def _claude_legacy_factory(
             "Do not call _claude_legacy_factory directly. Use a partial application of it instead."
         )
 
-    messages = agent.state.next_step["args"]["messages"]
+    client = anthropic.AsyncClient()
+    
+    # Prepare stop sequences
+    stop_sequences = [f"</{tool}" for tool in agent.toolkit_dict][:ANTHROPIC_STOP_SEQUENCE_LIMIT]
+    
+    # Prepare system and messages
+    system_content = claude_basic_system_prompt.format(
+        tools="\n".join(get_tool_descriptions(list(agent.toolkit_dict.keys())))
+    )
+    
+    messages = []
+    messages.append(AnthropicMessage(
+        role="user",
+        content="Your current task is the following: " + agent.state.task_string
+    ))
 
-    middleman_settings_copy = copy.deepcopy(middleman_settings)
-    middleman_settings_copy.stop = [f"</{tool}" for tool in agent.toolkit_dict][
-        :ANTHROPIC_STOP_SEQUENCE_LIMIT
-    ]
-    messages = agent.state.next_step["args"]["messages"]
-    wrapped_messages = [
-        {
-            "role": "system",
-            "content": claude_basic_system_prompt.format(
-                tools="\n".join(get_tool_descriptions(list(agent.toolkit_dict.keys())))
-            ),
-        },
-        {
-            "role": "user",
-            "content": "Your current task is the following: " + agent.state.task_string,
-        },
-    ]
-    for msg in messages:
-        role = msg.role
+    # Convert existing messages
+    for msg in agent.state.next_step["args"]["messages"]:
         content = msg.content
+        role = "assistant" if msg.role == "assistant" else "user"
+        
         if msg.function_call is not None:
             tool_name = msg.function_call["name"]
             tool_args = msg.function_call["arguments"]
@@ -51,33 +52,35 @@ async def _claude_legacy_factory(
         elif msg.role == "function":
             role = "user"
             content = f"<{msg.name}-output>{msg.content}</{msg.name}-output>"
-        wrapped_messages.append(
-            {
-                "role": role,
-                "content": content,
-            }
-        )
-    if wrapped_messages[-1]["role"] == "assistant":
-        wrapped_messages.append(
-            {
-                "role": "user",
-                "content": "No function call was included in the last message. Please include a function call in the next message using the <[tool_name]> [args] </[tool_name]> syntax.",
-            }
-        )
-    generations = await hooks.generate(
-        messages=[OpenaiChatMessage(**msg) for msg in wrapped_messages],
-        settings=middleman_settings_copy,
-    )
-    if generations.outputs is None:
-        raise ValueError("No generations returned from claude_legacy_factory")
+            
+        messages.append(AnthropicMessage(role=role, content=content))
 
-    generation = generations.outputs[0].completion
-    messages = []
-    for output in generations.outputs:
-        generation = output.completion
+    # Add prompt for function call if needed
+    if messages and messages[-1].role == "assistant":
+        messages.append(AnthropicMessage(
+            role="user",
+            content="No function call was included in the last message. Please include a function call in the next message using the <[tool_name]> [args] </[tool_name]> syntax."
+        ))
+
+    # Make API call
+    response = await client.messages.create(
+        model=middleman_settings.model,
+        messages=messages,
+        system=system_content,
+        max_tokens=middleman_settings.max_tokens,
+        temperature=middleman_settings.temp,
+        stop_sequences=stop_sequences,
+        n=middleman_settings.n
+    )
+
+    # Process response
+    processed_messages = []
+    for message in response.content:
+        generation = message.text
         last_tool_loc, last_tool = max(
             [(generation.find(f"<{tool}>"), tool) for tool in agent.toolkit_dict]
         )
+        
         content = generation
         function_call = None
         if last_tool_loc != -1:
@@ -87,16 +90,19 @@ async def _claude_legacy_factory(
                 "name": last_tool,
                 "arguments": raw_function_call.removesuffix(f"</{last_tool}>"),
             }
-        message = Message(
+            
+        processed_messages.append(Message(
             role="assistant",
             content=content,
             function_call=function_call,
-        )
-        messages.append(message)
+        ))
+
+    # Update agent state
     agent.state.next_step["module_type"] = "discriminator"
-    agent.state.next_step["args"]["options"] = messages
+    agent.state.next_step["args"]["options"] = processed_messages
     agent.state.next_step["args"]["generation_metadata"] = {
-        k: v for k, v in generations.dict().items() if k != "outputs"
+        "model": response.model,
+        "usage": response.usage,
     }
 
 
