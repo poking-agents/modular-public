@@ -62,7 +62,8 @@ async def _claude_legacy_factory(
                 "content": content,
             }
         )
-    if wrapped_messages[-1]["role"] == "assistant":
+    # -2 because in this branch's case we expect to always use context_and_usage_aware, which adds a user message
+    if wrapped_messages[-2]["role"] == "assistant":
         wrapped_messages.append(
             {
                 "role": "user",
