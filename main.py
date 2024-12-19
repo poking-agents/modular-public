@@ -169,7 +169,10 @@ async def main(*args):
         agent.state.time_usage = usage_info.usage.total_seconds
         agent.state.time_limit = usage_info.usageLimits.total_seconds
         hooks.save_state(
-            {"state": trim_state(agent.state.dict()), "settings": agent.settings.dict()}
+            {
+                "state": trim_state(agent.state.model_dump()),
+                "settings": agent.settings.model_dump(),
+            }
         )
         await agent.autosubmit()
 

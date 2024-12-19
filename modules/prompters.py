@@ -95,7 +95,7 @@ def trim_message_list(messages: List[Message], target_tok_length: int) -> List[M
         enc.encode(notice_retroactively_trimmed_prompt, disallowed_special=())
     )
     head_messages_to_use = messages[:1]
-    if head_messages_to_use[-1].function_call:
+    if len(head_messages_to_use) > 1 and head_messages_to_use[-1].function_call:
         # the last message pre-trim cannot have a function call because the
         # corresponding function output will be trimmed and the OpenAI API will
         # complain about the mismatch
@@ -200,19 +200,20 @@ async def _context_and_usage_aware(agent: Agent) -> None:
     elif usage_fraction > (3 / 4):
         usage_message += " You should attempt to reach a final answer soon."
 
-    messages.append(
-        Message(
-            role="user",
-            content=usage_message,
-            name=None,
-            function_call=None,
-        )
-    )
+    # Remove distraction
+    # messages.append(
+    #     Message(
+    #         role="user",
+    #         content=usage_message,
+    #         name=None,
+    #         function_call=None,
+    #     )
+    # )
     # TODO: be more principled about the target_tok_length setting
-    if "d2" in agent.settings.generator:
-        target_tok_length = 0.75 * 16_000
-    else:
+    if "g3.5ti" in agent.settings.generator:
         target_tok_length = 0.3 * 3_000
+    else:
+        target_tok_length = 0.75 * 16_000
     messages = trim_message_list(messages, int(target_tok_length))
     agent.state.next_step["module_type"] = "generator"
     agent.state.next_step["args"]["messages"] = messages

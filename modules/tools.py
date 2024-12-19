@@ -282,7 +282,7 @@ _basic = {
     "python": run_python_object,
     "bash": run_bash_state_object,
     "submit": return_fn_object,
-    "timeout": set_timeout_object,
+    # "timeout": set_timeout_object, # not for davinci-002
 }
 
 _basic_vision = {"describe_image": describe_image_object, **_basic}
