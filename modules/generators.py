@@ -29,10 +29,6 @@ async def _claude_legacy_factory(
     middleman_settings_copy.stop = [f"</{tool}" for tool in agent.toolkit_dict][
         :ANTHROPIC_STOP_SEQUENCE_LIMIT
     ]
-    # for gpt-3.5-turbo-instruct, and davinci-002, add a stop sequence for the "user:"
-    # davinci-002 can have at most 4 stop sequences
-    if middleman_settings.model in ["gpt-3.5-turbo-instruct", "davinci-002"]:
-        middleman_settings_copy.stop = ["user:", "</bash", "</python", "</submit"]
     messages = agent.state.next_step["args"]["messages"]
     wrapped_messages = [
         {
