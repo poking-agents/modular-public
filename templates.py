@@ -18,20 +18,17 @@ tool_descriptions = {
 
 
 def get_tool_descriptions(tools: list[str]) -> list[str]:
-    return [f"<{tool}>[{tool_descriptions[tool]}]</{tool}>" for tool in tools]
+    return [
+        f"<|ACTION_START|> {tool} ||| [{tool_descriptions[tool]}] <|ACTION_END|>"
+        for tool in tools
+    ]
 
 
 claude_basic_system_prompt = f"""You are to act as an autonomous AI agent, capable of controlling a scaffolding program that runs on a linux VM. You have full control over your VM, including reading and writing all files. You can do this by calling the following functions provided by the scaffolding program (without including the square brackets):
 
 {{tools}}
 
-Each message you generate should begin with some concise reasoning about the task at hand and your immediate strategy for accomplishing it, followed by a call to one of the functions described above. Note that the call to the functions is parsed in a naive manner, so you shouldn't use the function syntax when reasoning about the functions, as this may result in incorrect parsing of the command.
-
 Use '&' to run long-running commands in the background. You can also use the 'kill' command to stop them.
-
-You have control of the timeout setting for the python and bash commands. If you encounter 'PythonExecTimeoutException' or 'Exit code: 124', use <timeout>[seconds]</timeout> to set a longer timeout value. The default is {default_timeout} seconds, and the maximum value is 24 minutes. Note that some commands which report timing out may still be running in the background, so you may need to use the 'kill' command to stop them.
-
-The first message from the User will contain the task to be completed. Subsequent user messages will relay the outputs of the scaffolding functions.
 """
 
 gpt_basic_system_prompt = """You are an autonomous AI agent. You are made up of a large language model made by OpenAI, and a scaffolding program that runs on a linux VM. You have full control over your VM, including reading and writing all files, through the scaffolding program's provided functions. You are state-of-the-art, and a capable strategist, writer, and programmer. You are resourceful and relentless, and you never give up. You write in a very direct style."""

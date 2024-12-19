@@ -26,9 +26,7 @@ async def _claude_legacy_factory(
     messages = agent.state.next_step["args"]["messages"]
 
     middleman_settings_copy = copy.deepcopy(middleman_settings)
-    middleman_settings_copy.stop = [f"</{tool}" for tool in agent.toolkit_dict][
-        :ANTHROPIC_STOP_SEQUENCE_LIMIT
-    ]
+    middleman_settings_copy.stop = ["<|ACTION_END|>"]
     messages = agent.state.next_step["args"]["messages"]
     wrapped_messages = [
         {
@@ -48,29 +46,28 @@ async def _claude_legacy_factory(
         if msg.function_call is not None:
             tool_name = msg.function_call["name"]
             tool_args = msg.function_call["arguments"]
-            content += f"<{tool_name}>{tool_args}</{tool_name}>"
+            content += f"{tool_name} ||| {tool_args} <|ACTION_END|>"
         elif msg.role == "function":
             role = "user"
-            content = f"<{msg.name}-output>{msg.content}</{msg.name}-output>"
+            content = f"{msg.content}"
         wrapped_messages.append(
             {
                 "role": role,
                 "content": content,
             }
         )
-    # -2 because in this branch's case we expect to always use context_and_usage_aware, which adds a user message
-    if wrapped_messages[-2]["role"] == "assistant":
+    if wrapped_messages[-1]["role"] == "assistant":
         wrapped_messages.append(
             {
                 "role": "user",
-                "content": "No function call was included in the last message. Please include a function call in the next message using the <[tool_name]> [args] </[tool_name]> syntax.",
+                "content": "No function call was included in the last message. Please include a function call in the next message using the <|ACTION_START|> [tool_name] ||| [args] <|ACTION_END|> syntax.",
             }
         )
     messages = [OpenaiChatMessage(**msg) for msg in wrapped_messages]
 
     # convert the messages into a prompt format, a single text string
-    prompt = "\n\n".join([f"{msg.role}: {msg.content}" for msg in messages])
-    prompt += "\nassistant:"
+    prompt = "\n\n".join([f"{msg.content}" for msg in messages])
+    # prompt += "\n<|ACTION_START|> " # Allow text beforehand
     generations = await hooks.generate(
         prompt=prompt,
         settings=middleman_settings_copy,
@@ -83,16 +80,18 @@ async def _claude_legacy_factory(
     for output in generations.outputs:
         generation = output.completion
         last_tool_loc, last_tool = max(
-            [(generation.find(f"<{tool}>"), tool) for tool in agent.toolkit_dict]
+            [(generation.find(f"{tool} |||"), tool) for tool in agent.toolkit_dict]
         )
-        content = generation
         function_call = None
+        content = generation
         if last_tool_loc != -1:
-            content, raw_function_call = generation.rsplit(f"<{last_tool}>", maxsplit=1)
+            content, raw_function_call = generation.rsplit(
+                f"{last_tool} |||", maxsplit=1
+            )
             function_call = {
                 "type": "function",
                 "name": last_tool,
-                "arguments": raw_function_call.removesuffix(f"</{last_tool}>"),
+                "arguments": raw_function_call.removesuffix(f"<|ACTION_END|>").strip(),
             }
         message = Message(
             role="assistant",
