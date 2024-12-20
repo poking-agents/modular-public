@@ -1,13 +1,19 @@
 import copy
 from functools import partial
 from itertools import product
-from typing import List, Optional, cast
+from typing import List, Optional, Dict, Any
 
-from pyhooks.types import MiddlemanSettings, OpenaiChatMessage
+from pyhooks.types import MiddlemanSettings
 import anthropic
 from anthropic.types import MessageParam
+from openai import AsyncOpenAI
+from openai.types.chat import (
+    ChatCompletion,
+    ChatCompletionMessageParam,
+    ChatCompletionToolParam,
+)
 
-from base import Agent, Message, hooks
+from base import Agent, Message
 from templates import (
     claude_basic_system_prompt,
     get_tool_descriptions,
@@ -146,12 +152,13 @@ async def _gpt_basic_factory(
         )
 
     messages = agent.state.next_step["args"]["messages"]
+    client = AsyncOpenAI()
 
     # make a copy so we can decrement n later
     middleman_settings_copy = copy.deepcopy(middleman_settings)
-    wrapped_messages = [
+    wrapped_messages: List[ChatCompletionMessageParam] = [
         {
-            "role": "user",
+            "role": "system",
             "content": gpt_basic_system_prompt,
         },
         {
@@ -159,42 +166,97 @@ async def _gpt_basic_factory(
             "content": "You are assigned this task: " + agent.state.task_string,
         },
     ]
-    wrapped_messages += [msg.dict() for msg in messages]
-    tools = [
+
+    # Convert existing messages to proper OpenAI format
+    for msg in messages:
+        msg_dict = msg.dict()
+        wrapped_msg: Dict[str, Any] = {
+            "role": msg_dict["role"],
+            "content": msg_dict["content"],
+        }
+        if msg_dict.get("function_call"):
+            wrapped_msg["tool_calls"] = [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": msg_dict["function_call"]["name"],
+                        "arguments": msg_dict["function_call"]["arguments"],
+                    },
+                }
+            ]
+        wrapped_messages.append(wrapped_msg)  # type: ignore
+
+    tools: List[ChatCompletionToolParam] = [
         {
-            "name": k,
-            "description": v["description"],
-            "parameters": v["parameters"],
+            "type": "function",
+            "function": {
+                "name": k,
+                "description": v["description"],
+                "parameters": v["parameters"],
+            },
         }
         for k, v in agent.toolkit_dict.items()
     ]
+
     num_to_generate = middleman_settings.n
     generations = []
-    generation_metadata = {}
+    generation_metadata: Dict[str, Any] = {}
+
     while middleman_settings_copy.n > 0:
-        generation_n = await hooks.generate(
-            messages=[cast(OpenaiChatMessage, msg) for msg in wrapped_messages],
-            settings=middleman_settings_copy,
-            functions=tools,
-        )
-        generations += [
-            g
-            for g in generation_n.outputs or []
-            if g.function_call is None or g.function_call["name"] in agent.toolkit_dict
-        ]
-        middleman_settings_copy.n = num_to_generate - len(generations)
-        generation_metadata = {
-            k: v for k, v in generation_n.dict().items() if k != "outputs"
-        }
+        try:
+            response: ChatCompletion = await client.chat.completions.create(
+                model=middleman_settings.model,
+                messages=wrapped_messages,
+                tools=tools,
+                temperature=middleman_settings.temp,
+                max_tokens=middleman_settings.max_tokens or 4096,
+                n=middleman_settings_copy.n,
+            )
+
+            for choice in response.choices:
+                message = choice.message
+                function_call = None
+                if message.tool_calls:
+                    tool_call = message.tool_calls[0].function
+                    if tool_call.name in agent.toolkit_dict:
+                        function_call = {
+                            "type": "function",
+                            "name": tool_call.name,
+                            "arguments": tool_call.arguments,
+                        }
+
+                generations.append(
+                    {
+                        "completion": message.content or "",
+                        "function_call": function_call,
+                    }
+                )
+
+            if response.usage:
+                generation_metadata = {
+                    "model": response.model,
+                    "usage": {
+                        "completion_tokens": response.usage.completion_tokens,
+                        "prompt_tokens": response.usage.prompt_tokens,
+                        "total_tokens": response.usage.total_tokens,
+                    },
+                }
+
+            middleman_settings_copy.n = num_to_generate - len(generations)
+
+        except Exception as e:
+            print(f"Error during OpenAI API call: {str(e)}")
+            break
 
     options = [
         Message(
             role="assistant",
-            content=g.completion,
-            function_call=(g.function_call if g.function_call else None),
+            content=g["completion"],
+            function_call=g["function_call"],
         )
         for g in generations
     ]
+
     agent.state.next_step["module_type"] = "discriminator"
     agent.state.next_step["args"].update(
         generation_metadata=generation_metadata,
