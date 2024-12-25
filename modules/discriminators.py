@@ -8,8 +8,8 @@ from pyhooks.types import (
     MiddlemanResult,
     MiddlemanSettings,
     OpenaiChatMessage,
-    RatingOption,
     RatedOption,
+    RatingOption,
 )
 
 from base import Agent, Message, hooks
@@ -92,7 +92,7 @@ async def generate_comparison_gpt(
     options_prompt_template: str,
     system_prompt: str = gpt_basic_system_prompt,
 ) -> MiddlemanResult:
-    messages = agent.state.next_step["args"]["messages"]
+    messages: list[Message] = agent.state.next_step["args"]["messages"]
     options = agent.state.next_step["args"]["options"]
     wrapped_messages = [
         OpenaiChatMessage(
@@ -104,7 +104,7 @@ async def generate_comparison_gpt(
             content="You are assigned this task: " + agent.state.task_string,
         ),
     ]
-    wrapped_messages += [OpenaiChatMessage(**msg.dict()) for msg in messages]
+    wrapped_messages += [OpenaiChatMessage(**msg.model_dump()) for msg in messages]
     tools = [
         {
             "name": k,

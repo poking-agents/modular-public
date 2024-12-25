@@ -203,4 +203,4 @@ async def test_score_log_fn(mocker: MockerFixture):
     output = await tools.score_log_fn(base.State(task_string="test task"))
 
     assert isinstance(output, str)
-    assert json.loads(output) == [x.dict() for x in expected_output]
+    assert json.loads(output) == [x.model_dump() for x in expected_output]

@@ -14,6 +14,7 @@ from templates import (
 
 ANTHROPIC_STOP_SEQUENCE_LIMIT = 4
 
+
 async def _claude_legacy_factory(
     agent: Agent, middleman_settings: Optional[MiddlemanSettings] = None
 ) -> None:
@@ -96,7 +97,7 @@ async def _claude_legacy_factory(
     agent.state.next_step["module_type"] = "discriminator"
     agent.state.next_step["args"]["options"] = messages
     agent.state.next_step["args"]["generation_metadata"] = {
-        k: v for k, v in generations.dict().items() if k != "outputs"
+        k: v for k, v in generations.model_dump().items() if k != "outputs"
     }
 
 
@@ -128,7 +129,7 @@ async def _gpt_basic_factory(
             "Do not call _gpt_basic_factory directly. Use a partial application of it instead."
         )
 
-    messages = agent.state.next_step["args"]["messages"]
+    messages: list[Message] = agent.state.next_step["args"]["messages"]
 
     # make a copy so we can decrement n later
     middleman_settings_copy = copy.deepcopy(middleman_settings)
@@ -142,7 +143,7 @@ async def _gpt_basic_factory(
             "content": "You are assigned this task: " + agent.state.task_string,
         },
     ]
-    wrapped_messages += [msg.dict() for msg in messages]
+    wrapped_messages += [msg.model_dump() for msg in messages]
     tools = [
         {
             "name": k,
@@ -167,7 +168,7 @@ async def _gpt_basic_factory(
         ]
         middleman_settings_copy.n = num_to_generate - len(generations)
         generation_metadata = {
-            k: v for k, v in generation_n.dict().items() if k != "outputs"
+            k: v for k, v in generation_n.model_dump().items() if k != "outputs"
         }
 
     options = [
