@@ -1111,7 +1111,7 @@ tiktoken = "~0.7.0"
 type = "git"
 url = "https://github.com/METR/vivaria.git"
 reference = "main"
-resolved_reference = "c09545cd12c7624f3abdf6e6a978304536d67447"
+resolved_reference = "57190be59700da5564ea3bb3c2e373a7b0e4c019"
 subdirectory = "pyhooks"
 
 [[package]]
