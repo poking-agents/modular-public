@@ -82,7 +82,7 @@ async def test_score_feedback(
         autospec=True,
         return_value=mocker.Mock(
             outputs=[mocker.Mock(completion="test completion")],
-            dict=mocker.Mock(return_value={"foo": "bar"}),
+            model_dump=mocker.Mock(return_value={"foo": "bar"}),
         ),
     )
 
