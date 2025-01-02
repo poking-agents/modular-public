@@ -32,7 +32,7 @@ run_python_object = {
 
 
 async def score_fn(_state: State) -> str:
-    output = (await hooks.score()).dict()
+    output = (await hooks.score()).model_dump()
     if output["score"] is None:
         del output["score"]
 
@@ -55,7 +55,7 @@ score_fn_object = {
 
 async def score_log_fn(_state: State) -> str:
     output = await hooks.scoreLog()
-    return json.dumps([entry.dict() for entry in output])
+    return json.dumps([entry.model_dump() for entry in output])
 
 
 score_log_fn_object = {

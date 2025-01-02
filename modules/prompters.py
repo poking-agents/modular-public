@@ -54,7 +54,7 @@ def _format_score_message(message: Message) -> Message:
 
     return Message(
         **{
-            **message.dict(),
+            **message.model_dump(),
             "content": "\n".join((*content, *extra)),
         }
     )

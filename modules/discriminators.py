@@ -8,8 +8,8 @@ from pyhooks.types import (
     MiddlemanResult,
     MiddlemanSettings,
     OpenaiChatMessage,
-    RatingOption,
     RatedOption,
+    RatingOption,
 )
 
 from base import Agent, Message, hooks
@@ -92,7 +92,7 @@ async def generate_comparison_gpt(
     options_prompt_template: str,
     system_prompt: str = gpt_basic_system_prompt,
 ) -> MiddlemanResult:
-    messages = agent.state.next_step["args"]["messages"]
+    messages: list[Message] = agent.state.next_step["args"]["messages"]
     options = agent.state.next_step["args"]["options"]
     wrapped_messages = [
         OpenaiChatMessage(
@@ -104,7 +104,7 @@ async def generate_comparison_gpt(
             content="You are assigned this task: " + agent.state.task_string,
         ),
     ]
-    wrapped_messages += [OpenaiChatMessage(**msg.dict()) for msg in messages]
+    wrapped_messages += [OpenaiChatMessage(**msg.model_dump()) for msg in messages]
     tools = [
         {
             "name": k,
@@ -363,6 +363,7 @@ models_and_comparison_generators = [
     ("gpt-4o-mini-2024-07-18", "4om", generate_comparison_gpt),
     ("o1-preview-2024-09-12", "o1p", generate_comparison_gpt),
     ("o1-mini-2024-09-12", "o1m", generate_comparison_gpt),
+    ("o1-2024-12-17", "o1", generate_comparison_gpt),
     ("claude-3-opus-20240229", "c3o", generate_comparison_claude_legacy),
     ("claude-3-sonnet-20240229", "c3s", generate_comparison_claude_legacy),
     ("claude-3-haiku-20240229", "c3h", generate_comparison_claude_legacy),

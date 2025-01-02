@@ -70,7 +70,10 @@ class State(BaseModel):
     submissions: List[str] = Field(default_factory=list)
 
     class Config:
-        json_encoders = {Node: lambda v: v.dict(), Message: lambda v: v.dict()}
+        json_encoders = {
+            Node: lambda v: v.model_dump(),
+            Message: lambda v: v.model_dump(),
+        }
 
     @classmethod
     def parse_obj(cls, obj):
