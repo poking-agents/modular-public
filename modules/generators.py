@@ -67,7 +67,7 @@ async def _claude_legacy_factory(
 
     # convert the messages into a prompt format, a single text string
     prompt = "\n\n".join([f"{msg.content}" for msg in messages])
-    prompt += "\n<|ACTION_START|> " # comment out to allow text beforehand
+    prompt += "\n\n<|ACTION_START|> " # comment out to allow text beforehand
     generations = await hooks.generate(
         prompt=prompt,
         settings=middleman_settings_copy,
