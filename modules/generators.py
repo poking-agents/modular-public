@@ -26,7 +26,7 @@ async def _claude_legacy_factory(
     messages = agent.state.next_step["args"]["messages"]
 
     middleman_settings_copy = copy.deepcopy(middleman_settings)
-    middleman_settings_copy.stop = ["<|ACTION_END|>"]
+    middleman_settings_copy.stop = ["<|ACTION_END|>", "<|ACTION_START|>"]
     messages = agent.state.next_step["args"]["messages"]
     wrapped_messages = [
         {
@@ -46,7 +46,7 @@ async def _claude_legacy_factory(
         if msg.function_call is not None:
             tool_name = msg.function_call["name"]
             tool_args = msg.function_call["arguments"]
-            content += f"{tool_name} ||| {tool_args} <|ACTION_END|>"
+            content += f"<|ACTION_START|> {tool_name} ||| {tool_args} <|ACTION_END|>"
         elif msg.role == "function":
             role = "user"
             content = f"{msg.content}"
@@ -67,7 +67,7 @@ async def _claude_legacy_factory(
 
     # convert the messages into a prompt format, a single text string
     prompt = "\n\n".join([f"{msg.content}" for msg in messages])
-    # prompt += "\n<|ACTION_START|> " # Allow text beforehand
+    prompt += "\n<|ACTION_START|> " # comment out to allow text beforehand
     generations = await hooks.generate(
         prompt=prompt,
         settings=middleman_settings_copy,

@@ -24,11 +24,25 @@ from templates import (
 
 
 async def _basic(agent: Agent) -> None:
-    node_metadata = {
-        "g__generation_metadata": agent.state.next_step["args"]["generation_metadata"],
-    }
-    agent.append(agent.state.next_step["args"]["options"][0], metadata=node_metadata)
-    agent.state.next_step["module_type"] = "actor"
+    options = agent.state.next_step["args"]["options"]
+    
+    # Find first option with a tool call
+    valid_option = None
+    for option in options:
+        if option.function_call is not None:
+            valid_option = option
+            break
+    
+    if valid_option is not None:
+        # Found a valid option with a tool call
+        node_metadata = {
+            "g__generation_metadata": agent.state.next_step["args"]["generation_metadata"],
+        }
+        agent.append(valid_option, metadata=node_metadata)
+        agent.state.next_step["module_type"] = "actor"
+    else:
+        # No valid options found, try generating again
+        agent.state.next_step["module_type"] = "generator"
 
 
 async def generate_comparison_claude_legacy(
