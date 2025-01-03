@@ -205,6 +205,6 @@ for model_pair, n in product(gpt_models, [1, 2, 4, 8, 16, 32, 64]):
     globals()[f"_gpt_basic_{n}x{desc}"] = partial(
         _gpt_basic_factory,
         middleman_settings=MiddlemanSettings(
-            n=n, model=model, temp=1, max_tokens=4096, stop=[]
+            n=n, model=model, temp=1, max_tokens=2048, stop=[]
         ),
     )
