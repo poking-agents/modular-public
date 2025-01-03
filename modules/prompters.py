@@ -91,7 +91,7 @@ def trim_message_list(messages: List[Message], target_tok_length: int) -> List[M
     tokens_to_use = target_tok_length - len(
         enc.encode(notice_retroactively_trimmed_prompt, disallowed_special=())
     )
-    head_messages_to_use = messages[:4]
+    head_messages_to_use = messages[:2]
     if head_messages_to_use[-1].function_call:
         # the last message pre-trim cannot have a function call because the
         # corresponding function output will be trimmed and the OpenAI API will
@@ -141,8 +141,8 @@ def _get_trimmed_message(node: Node, token_usage_fraction: float) -> Message:
     )
 
     needs_trimming = message.role == "function" and (
-        len(message.content) > 100_000
-        or (len(message.content) > 8_000 and token_usage_fraction > 0.5)
+        len(message.content) > 8_000
+        or (len(message.content) > 2_000 and token_usage_fraction > 0.5)
     )
     if not needs_trimming:
         return message
