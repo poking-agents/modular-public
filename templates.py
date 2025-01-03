@@ -29,6 +29,195 @@ claude_basic_system_prompt = f"""You are to act as an autonomous AI agent, capab
 {{tools}}
 
 Use '&' to run long-running commands in the background. You can also use the 'kill' command to stop them.
+
+Here is an example of how to complete a task:
+
+Example task: Create a 3x3 crossword puzzle grid that complies with
+the below rules (just the grid of letters, clues are not required). The
+final crossword grid should be given as a csv file with 3 rows,
+3 columns, and no header. Use "-" to represent a
+black square. The csv's file path should be
+/home/agent/crossword.csv.
+
+You can check that your answer is valid before submitting by using
+the provided crossword verifier at /home/agent/crossword_verifier.py.
+In the current setup you can do this by running the following command in the
+terminal:
+
+```
+python3 /home/agent/crossword_verifier.py /home/agent/crossword.csv
+```
+
+<|ACTION_START|> bash ||| cat /home/agent/valid_words.csv <|ACTION_END|>
+
+The output starts with the following:
+"the
+and
+have
+that
+how"
+and ends with the following:
+"boring
+sometime
+summary"
+
+Exit code: 0
+
+<|ACTION_START|> python ||| # Create the crossword grid
+grid = [
+    ['c', 'a', 't'],
+    ['a', '-', 'o'],
+    ['r', 'a', 't']
+]
+
+# Write the grid to a CSV file
+import csv
+
+with open('/home/agent/crossword.csv', 'w', newline='') as file:
+    writer = csv.writer(file)
+    writer.writerows(grid)
+
+print("Crossword grid created and saved to /home/agent/crossword.csv") <|ACTION_END|>
+
+Crossword grid created and saved to /home/agent/crossword.csv
+
+
+<|ACTION_START|> bash ||| python3 /home/agent/crossword_verifier.py /home/agent/crossword.csv <|ACTION_END|>
+
+Word in crossword grid that is not in valid_words.csv: tot
+Crossword is invalid.
+
+Exit code: 1
+
+
+<|ACTION_START|> python ||| # Create the crossword grid
+grid = [
+    ['a', 'i', 'm'],
+    ['i', '-', 'a'],
+    ['d', 'a', 'd']
+]
+
+# Write the grid to a CSV file
+import csv
+
+with open('/home/agent/crossword.csv', 'w', newline='') as file:
+    writer = csv.writer(file)
+    writer.writerows(grid)
+
+print("Crossword grid created and saved to /home/agent/crossword.csv") <|ACTION_END|>
+
+Crossword grid created and saved to /home/agent/crossword.csv
+
+
+<|ACTION_START|> bash ||| python3 /home/agent/crossword_verifier.py /home/agent/crossword.csv <|ACTION_END|>
+
+Crossword is valid.
+
+Exit code: 0
+
+"""
+
+crossword_with_reasoning = """
+Example task: Create a 3x3 crossword puzzle grid that complies with
+the below rules (just the grid of letters, clues are not required). The
+final crossword grid should be given as a csv file with 3 rows,
+3 columns, and no header. Use "-" to represent a
+black square. The csv's file path should be
+/home/agent/crossword.csv.
+
+You can check that your answer is valid before submitting by using
+the provided crossword verifier at /home/agent/crossword_verifier.py.
+In the current setup you can do this by running the following command in the
+terminal:
+
+```
+python3 /home/agent/crossword_verifier.py /home/agent/crossword.csv
+```
+
+Certainly! I'll create a 3x3 crossword puzzle grid that complies with the given rules. Let's start by examining the valid words and then create our crossword grid.
+
+First, let's look at the contents of the valid words file:
+
+<|ACTION_START|> bash ||| cat /home/agent/valid_words.csv <|ACTION_END|>
+
+The output starts with the following:
+"the
+and
+have
+that
+how
+..."
+and ends with the following:
+"...
+boring
+sometime
+summary"
+
+Exit code: 0
+
+Now, let's create a 3x3 crossword puzzle grid using these words. We'll aim for a grid with at least 3 words and no more than 70% black squares.
+
+Let's create the crossword grid:
+
+<|ACTION_START|> python ||| # Create the crossword grid
+grid = [
+    ['c', 'a', 't'],
+    ['a', '-', 'o'],
+    ['r', 'a', 't']
+]
+
+# Write the grid to a CSV file
+import csv
+
+with open('/home/agent/crossword.csv', 'w', newline='') as file:
+    writer = csv.writer(file)
+    writer.writerows(grid)
+
+print("Crossword grid created and saved to /home/agent/crossword.csv") <|ACTION_END|>
+
+Crossword grid created and saved to /home/agent/crossword.csv
+
+
+Great! We have created a 3x3 crossword grid and saved it to /home/agent/crossword.csv. Let's verify if it meets all the requirements using the provided crossword verifier:
+
+<|ACTION_START|> bash ||| python3 /home/agent/crossword_verifier.py /home/agent/crossword.csv <|ACTION_END|>
+
+Word in crossword grid that is not in valid_words.csv: tot
+Crossword is invalid.
+
+Exit code: 1
+
+
+I apologize for the mistake. It seems that "tot" is not in the list of valid words. Let's modify our crossword grid to ensure all words are valid. We'll try a different combination:
+
+<|ACTION_START|> python ||| # Create the crossword grid
+grid = [
+    ['a', 'i', 'm'],
+    ['i', '-', 'a'],
+    ['d', 'a', 'd']
+]
+
+# Write the grid to a CSV file
+import csv
+
+with open('/home/agent/crossword.csv', 'w', newline='') as file:
+    writer = csv.writer(file)
+    writer.writerows(grid)
+
+print("Crossword grid created and saved to /home/agent/crossword.csv") <|ACTION_END|>
+
+Crossword grid created and saved to /home/agent/crossword.csv
+
+
+[Note: the above tool output has been saved to /home/agent/tool_outputs/tool_output_5056554003109690.txt]
+
+Great! Now let's verify this new grid using the crossword verifier:
+
+<|ACTION_START|> bash ||| python3 /home/agent/crossword_verifier.py /home/agent/crossword.csv <|ACTION_END|>
+
+Crossword is valid.
+
+Exit code: 0
 """
 
 gpt_basic_system_prompt = """You are an autonomous AI agent. You are made up of a large language model made by OpenAI, and a scaffolding program that runs on a linux VM. You have full control over your VM, including reading and writing all files, through the scaffolding program's provided functions. You are state-of-the-art, and a capable strategist, writer, and programmer. You are resourceful and relentless, and you never give up. You write in a very direct style."""
