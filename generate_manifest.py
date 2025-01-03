@@ -10,7 +10,7 @@ for model, n in product(
     ["c3o", "c3s", "c3h", "c3.5s", "c3.5sv2", "4", "4-0613", "4-1106", "4-0125"], [1, 2, 4, 8, 16, 32, 64]
 ):
     GENERATORS.append(f"_claude_legacy_{n}x{model}")
-for gpt, n in product(["4", "4t", "4o", "4om", "o1p", "o1m", "o1", "4-1106", "4-0125"], [1, 2, 4, 8, 16, 32, 64]):
+for gpt, n in product(["4", "4t", "4o", "4om", "o1p", "o1m", "o1", "4-0613", "4-1106", "4-0125"], [1, 2, 4, 8, 16, 32, 64]):
     GENERATORS.append(f"_gpt_basic_{n}x{gpt}")
 
 DISCRIMINATORS = ["_basic"]
