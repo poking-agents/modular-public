@@ -201,7 +201,7 @@ async def _context_and_usage_aware(agent: Agent) -> None:
     )
     # TODO: be more principled about the target_tok_length setting
     if "4-0613" in agent.settings.generator:
-        target_tok_length = 0.4 * 8196
+        target_tok_length = 0.5 * 32_000
     else:
         target_tok_length = 0.75 * 128_000
     messages = trim_message_list(messages, int(target_tok_length))

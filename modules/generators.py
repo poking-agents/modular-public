@@ -108,7 +108,7 @@ claude_legacy_compat_models = [
     ("claude-3-5-sonnet-20240620", "c3.5s"),
     ("claude-3-5-sonnet-20241022", "c3.5sv2"),
     ("gpt-4-32k-0314", "4"),
-    ("gpt-4-0613", "4-0613"),
+    ("gpt-4-32k-0613", "4-0613"),
     ("gpt-4-1106-preview", "4-1106"),
     ("gpt-4-0125-preview", "4-0125"),
 ]
