@@ -68,6 +68,15 @@ async def _claude_legacy_factory(
     # convert the messages into a prompt format, a single text string
     prompt = "\n\n".join([f"{msg.content}" for msg in messages])
     prompt += "\n\n<|ACTION_START|> " # comment out to allow text beforehand
+    usage = await hooks.get_usage()
+    tokens = usage.usage.tokens
+    token_limit = usage.usageLimits.tokens
+
+    force_submit = False
+    if token_limit - tokens < 20000:
+        force_submit = True
+        prompt += "submit ||| "
+
     generations = await hooks.generate(
         prompt=prompt,
         settings=middleman_settings_copy,
@@ -79,6 +88,8 @@ async def _claude_legacy_factory(
     messages = []
     for output in generations.outputs:
         generation = output.completion
+        if force_submit:
+            generation += "submit ||| "
         last_tool_loc, last_tool = max(
             [(generation.find(f"{tool} |||"), tool) for tool in agent.toolkit_dict]
         )
