@@ -70,7 +70,7 @@ async def return_fn(_state: State, submission: Any = None) -> None:
         submission = json.dumps(submission)
     elif not isinstance(submission, str):
         submission = str(submission)
-    await hooks.submit(submission)
+    await hooks.submit(str(submission))
 
 
 return_fn_object = {
