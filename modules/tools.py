@@ -87,14 +87,14 @@ score_log_fn_object = {
 def _sanitize_submission(submission: Any) -> str:
     if submission is None:
         submission = ""
-    elif not isinstance(submission, str):
+    elif isinstance(submission, dict):
         submission = json.dumps(submission)
     return submission
 
 
 async def return_fn(_state: State, submission: Any = None) -> None:
     submission = _sanitize_submission(submission)
-    await hooks.submit(submission)
+    await hooks.submit(str(submission))
 
 
 return_fn_object = {

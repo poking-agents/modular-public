@@ -89,7 +89,7 @@ async def _claude_legacy_factory(
     for output in generations.outputs:
         generation = output.completion
         if force_submit:
-            generation += "submit ||| "
+            generation = "submit ||| " + generation
         last_tool_loc, last_tool = max(
             [(generation.find(f"{tool} |||"), tool) for tool in agent.toolkit_dict]
         )
