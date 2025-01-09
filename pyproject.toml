@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "modular-public"
-version = "1.1.7"
+version = "1.2.0a1"
 description = ""
 authors = ["METR <team@metr.org>"]
 readme = "README.md"
