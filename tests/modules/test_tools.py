@@ -33,11 +33,16 @@ async def test_score_fn(mocker: MockerFixture):
         ),
     )
     mocker.patch("pyhooks.Hooks.score", autospec=True, return_value=expected_output)
+    action_mock = mocker.patch("pyhooks.Hooks.action", autospec=True, return_value=mocker.AsyncMock()())
 
     output = await tools.score_fn(base.State(task_string="test task"))
 
     assert isinstance(output, str)
     assert json.loads(output) == expected_output.model_dump()
+    action_mock.assert_called_once()
+    assert isinstance(action_mock.call_args.args[1], dict)
+    assert action_mock.call_args.args[1]["type"] == "score"
+    assert isinstance(action_mock.call_args.args[1]["args"], dict)
 
 
 @pytest.mark.asyncio
@@ -77,6 +82,7 @@ async def test_score_feedback(
     )
     mocker.patch("pyhooks.Hooks.log", autospec=True)
     mocker.patch("pyhooks.Hooks.log_with_attributes", autospec=True)
+    action_mock = mocker.patch("pyhooks.Hooks.action", autospec=True, return_value=mocker.AsyncMock()())
     generate_mock = mocker.patch(
         "pyhooks.Hooks.generate",
         autospec=True,
@@ -122,6 +128,10 @@ async def test_score_feedback(
     assert score_mock.call_count == 1, agent.state.nodes[
         agent.state.last_node_id
     ].message
+    action_mock.assert_called_once()
+    assert isinstance(action_mock.call_args.args[1], dict)
+    assert action_mock.call_args.args[1]["type"] == "score"
+    assert isinstance(action_mock.call_args.args[1]["args"], dict)
     expected_content = json.dumps(score_result.model_dump())
     if expected_output_file is not None:
         expected_content += f"\n\n[Note: the above tool output has been saved to {expected_output_file}]"
@@ -199,8 +209,51 @@ async def test_score_log_fn(mocker: MockerFixture):
         )
     ]
     mocker.patch("pyhooks.Hooks.scoreLog", autospec=True, return_value=expected_output)
+    action_mock = mocker.patch("pyhooks.Hooks.action", autospec=True, return_value=mocker.AsyncMock()())
 
     output = await tools.score_log_fn(base.State(task_string="test task"))
 
     assert isinstance(output, str)
     assert json.loads(output) == [x.model_dump() for x in expected_output]
+    action_mock.assert_called_once()
+    assert isinstance(action_mock.call_args.args[1], dict)
+    assert action_mock.call_args.args[1]["type"] == "score_log"
+    assert isinstance(action_mock.call_args.args[1]["args"], dict)
+
+
+@pytest.mark.asyncio
+async def test_run_python(mocker: MockerFixture):
+    expected_output = "test output"
+    mocker.patch("base.actions.run_python", autospec=True, return_value=expected_output)
+    action_mock = mocker.patch("pyhooks.Hooks.action", autospec=True, return_value=mocker.AsyncMock()())
+
+    test_code = "test code"
+    output = await tools.run_python(base.State(task_string="test task", timeout=5), test_code)
+
+    assert output == expected_output
+    action_mock.assert_called_once()
+    assert isinstance(action_mock.call_args.args[1], dict)
+    assert action_mock.call_args.args[1]["type"] == "run_python"
+    assert isinstance(action_mock.call_args.args[1]["args"], dict)
+    assert action_mock.call_args.args[1]["args"]["code"] == test_code
+
+
+@pytest.mark.asyncio
+async def test_run_bash_state(mocker: MockerFixture):
+    expected_output = json.dumps({
+        "stdout": "test stdout",
+        "stderr": "test stderr",
+        "status": 0
+    })
+    mocker.patch("base.actions.run_bash", autospec=True, return_value=expected_output)
+    action_mock = mocker.patch("pyhooks.Hooks.action", autospec=True, return_value=mocker.AsyncMock()())
+
+    test_command = "test command"
+    output = await tools.run_bash_state(base.State(task_string="test task", timeout=5), test_command)
+
+    assert output == "test stdout\ntest stderr\nExit code: 0"
+    action_mock.assert_called_once()
+    assert isinstance(action_mock.call_args.args[1], dict)
+    assert action_mock.call_args.args[1]["type"] == "run_bash"
+    assert isinstance(action_mock.call_args.args[1]["args"], dict)
+    assert action_mock.call_args.args[1]["args"]["command"] == test_command

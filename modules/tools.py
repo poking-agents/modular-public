@@ -11,6 +11,10 @@ from templates import default_timeout
 
 async def run_python(_state: State, code: str) -> str:
     timeout = _state.timeout
+    await hooks.action({
+        "type": "run_python",
+        "args": {"code": code},
+    })
     output = await actions.run_python(code, timeout=timeout)
     return output
 
@@ -32,6 +36,10 @@ run_python_object = {
 
 
 async def score_fn(_state: State) -> str:
+    await hooks.action({
+        "type": "score",
+        "args": {},
+    })
     output = (await hooks.score()).model_dump()
     if output["score"] is None:
         del output["score"]
@@ -54,6 +62,10 @@ score_fn_object = {
 
 
 async def score_log_fn(_state: State) -> str:
+    await hooks.action({
+        "type": "score_log",
+        "args": {},
+    })
     output = await hooks.scoreLog()
     return json.dumps([entry.model_dump() for entry in output])
 
@@ -139,6 +151,10 @@ async def run_bash_state(
     timeout = _state.timeout
     if timeout_override is not None:
         timeout = timeout_override
+    await hooks.action({
+        "type": "run_bash",
+        "args": {"command": command},
+    })
     output = await actions.run_bash(command, timeout)
     o = json.loads(output)
     output_string = o["stdout"] + "\n" + o["stderr"]
