@@ -33,6 +33,7 @@ async def test_score_fn(mocker: MockerFixture):
         ),
     )
     mocker.patch("pyhooks.Hooks.score", autospec=True, return_value=expected_output)
+    mocker.patch("pyhooks.Hooks.action", autospec=True, return_value=mocker.AsyncMock()())
 
     output = await tools.score_fn(base.State(task_string="test task"))
 
@@ -77,6 +78,7 @@ async def test_score_feedback(
     )
     mocker.patch("pyhooks.Hooks.log", autospec=True)
     mocker.patch("pyhooks.Hooks.log_with_attributes", autospec=True)
+    mocker.patch("pyhooks.Hooks.action", autospec=True, return_value=mocker.AsyncMock()())
     generate_mock = mocker.patch(
         "pyhooks.Hooks.generate",
         autospec=True,
@@ -199,6 +201,7 @@ async def test_score_log_fn(mocker: MockerFixture):
         )
     ]
     mocker.patch("pyhooks.Hooks.scoreLog", autospec=True, return_value=expected_output)
+    mocker.patch("pyhooks.Hooks.action", autospec=True, return_value=mocker.AsyncMock()())
 
     output = await tools.score_log_fn(base.State(task_string="test task"))
 
