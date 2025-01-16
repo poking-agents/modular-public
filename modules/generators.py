@@ -33,9 +33,17 @@ async def _claude_legacy_factory(
     wrapped_messages = [
         {
             "role": "system",
-            "content": claude_basic_system_prompt.format(
-                tools="\n".join(get_tool_descriptions(list(agent.toolkit_dict.keys())))
-            ),
+            "content": [
+                {
+                    "type": "text",
+                    "text": claude_basic_system_prompt.format(
+                        tools="\n".join(
+                            get_tool_descriptions(list(agent.toolkit_dict.keys()))
+                        )
+                    ),
+                    "cache_control": {"type": "ephemeral"},
+                }
+            ],
         },
         {
             "role": "user",
@@ -65,6 +73,26 @@ async def _claude_legacy_factory(
                 "content": "No function call was included in the last message. Please include a function call in the next message using the <[tool_name]> [args] </[tool_name]> syntax.",
             }
         )
+
+    # add cache control to last 2 user messages
+    cache_control_breakpoints = 0
+    for msg in reversed(wrapped_messages):
+        if msg["role"] == "user":
+            text_content = msg["content"]
+            assert isinstance(text_content, str), (
+                f"message content must be a string, but is of type {type(text_content)}"
+            )
+            msg["content"] = [
+                {
+                    "type": "text",
+                    "text": text_content,
+                    "cache_control": {"type": "ephemeral"},
+                }
+            ]
+            cache_control_breakpoints += 1
+        if cache_control_breakpoints >= 2:
+            break
+
     generations = await hooks.generate(
         messages=[OpenaiChatMessage(**msg) for msg in wrapped_messages],
         settings=middleman_settings_copy,
