@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime
 import json
 import random
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pyhooks
 import pytest
@@ -279,8 +279,6 @@ async def test_return_fn(submission: Any, expected_args: str, mocker: MockerFixt
     submit_mock.assert_awaited_once()
     assert submit_mock.call_args.args[1] == expected_args
 
-
-from typing import Any
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
