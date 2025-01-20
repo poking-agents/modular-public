@@ -1,6 +1,8 @@
 import base64
 import json
 from pathlib import Path
+import re
+import textwrap
 from typing import Any
 
 from pyhooks.types import MiddlemanSettings, OpenaiChatMessage
@@ -258,7 +260,15 @@ async def describe_image_fn(_state: State, file_path: str, query: str | None = N
         print(f"Analyzing {file_path} with query {query}")
         extension = Path(file_path).suffix
         if extension not in image_file_extensions:
-            return f"Error: file extension {extension} not in allowed extensions {image_file_extensions}"
+            if re.search(r",|:|\?", file_path):
+                return textwrap.dedent(
+                    f"""\
+                    Error: file extension {extension} not in allowed extensions {image_file_extensions}.
+                    Specify your question in the 'query' parameter, not the 'file_path' parameter.
+                    """
+                ).strip()
+            else:
+                return f"Error: file extension {extension} not in allowed extensions {image_file_extensions}"
         image_base64 = base64.b64encode(open(file_path, "rb").read()).decode("utf-8")
         assert len(image_base64) > 10, "Image is empty"
         image_url = f"data:image/{extension[1:]};base64," + image_base64
