@@ -1,6 +1,7 @@
 import base64
 import json
 from pathlib import Path
+import textwrap
 from typing import Any
 
 from pyhooks.types import MiddlemanSettings, OpenaiChatMessage
@@ -78,7 +79,9 @@ score_log_fn_object = {
 
 
 def _sanitize_submission(submission: Any) -> str:
-    if not isinstance(submission, str):
+    if submission is None:
+        submission = ""
+    elif not isinstance(submission, str):
         submission = json.dumps(submission)
     return submission
 
@@ -115,10 +118,10 @@ async def double_return_fn(_state: State, submission: str | None = None) -> str 
         await hooks.submit(submission)
     elif less_than_5_percent_remaining:
         # if there is less than 5% of the token budget remaining, accept the submission
-        await hooks.submit(submission or "")
+        await hooks.submit(submission)
     else:
         # if it isn't, add it to the array of submissions
-        _state.submissions.append(submission or "")
+        _state.submissions.append(submission)
 
         ample_tokens_remaining = (
             _state.token_limit - _state.token_usage > 0.1 * _state.token_limit
@@ -257,13 +260,19 @@ I need to view this image, but don't have image input enabled. Here's the image:
     )
 
 
-async def describe_image_fn(_state: State, file_path: str, query: str | None = None):
+async def describe_image_fn(_state: State, file_path: str | Path, query: str | None = None):
     try:
         print(f"Analyzing {file_path} with query {query}")
-        extension = Path(file_path).suffix
+        file_path = Path(file_path)
+        extension = file_path.suffix
         if extension not in image_file_extensions:
-            return f"Error: file extension {extension} not in allowed extensions {image_file_extensions}"
-        image_base64 = base64.b64encode(open(file_path, "rb").read()).decode("utf-8")
+            return textwrap.dedent(
+                f"""\
+                Error: file extension {extension} not in allowed extensions {image_file_extensions}.
+                If you want to ask a question about the image, make sure you specify it in the "query" parameter.
+                """
+            ).strip()
+        image_base64 = base64.b64encode(file_path.read_bytes()).decode("utf-8")
         assert len(image_base64) > 10, "Image is empty"
         image_url = f"data:image/{extension[1:]};base64," + image_base64
         vlm_response = await analyze_image(_state, image_url=image_url, query=query)
