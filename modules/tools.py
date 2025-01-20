@@ -77,11 +77,14 @@ score_log_fn_object = {
 }
 
 
-async def return_fn(_state: State, submission: Any = None) -> None:
-    if isinstance(submission, dict):
+def _sanitize_submission(submission: Any) -> str:
+    if not isinstance(submission, str):
         submission = json.dumps(submission)
-    elif not isinstance(submission, str):
-        submission = str(submission)
+    return submission
+
+
+async def return_fn(_state: State, submission: Any = None) -> None:
+    submission = _sanitize_submission(submission)
     await hooks.submit(submission)
 
 
@@ -106,6 +109,7 @@ async def double_return_fn(_state: State, submission: str | None = None) -> str 
         _state.token_limit - _state.token_usage < 0.05 * _state.token_limit
     )
     # check whether the submission is in the array of submissions already made
+    submission = _sanitize_submission(submission)
     if submission in _state.submissions:
         # if it is, submit the submission
         await hooks.submit(submission)
