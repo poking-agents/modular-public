@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime
 import json
 import random
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pyhooks
 import pytest
@@ -257,3 +257,97 @@ async def test_run_bash_state(mocker: MockerFixture):
     assert action_mock.call_args.args[1]["type"] == "run_bash"
     assert isinstance(action_mock.call_args.args[1]["args"], dict)
     assert action_mock.call_args.args[1]["args"]["command"] == test_command
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ["submission", "expected_args"],
+    [
+        (None, ""),
+        ("test submission", "test submission"),
+        (["this", "is", "a", "list"], '["this", "is", "a", "list"]'),
+        ({"foo": "bar"}, '{"foo": "bar"}'),
+        (True, "true"),
+        (123, "123"),
+        ("", ""),
+    ],
+)
+async def test_return_fn(submission: Any, expected_args: str, mocker: MockerFixture):
+    submit_mock = mocker.patch("pyhooks.Hooks.submit", autospec=True)
+
+    await tools.return_fn(base.State(task_string="test task"), submission)
+    submit_mock.assert_awaited_once()
+    assert submit_mock.call_args.args[1] == expected_args
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ["submission", "expected_submit_arg", "existing_submissions", "expect_existing_submit"],
+    [
+        ("test submission", "test submission", [], False),
+        ("test submission", "test submission", ["test submission"], True),
+        ("test submission", "test submission", ["a different string"], False),
+        ("test submission", "test submission", ["a different string", "another", "test submission"], True),
+        (None, "", [], False),
+        (None, "", [""], True),
+        ("", "", [], False),
+        ("", "", [""], True),
+        (123, "123", [], False),
+        (123, "123", ['123'], True),
+        (123, "123", ['456', '123', '789'], True),
+        (123, "123", ['12', '3', '456', '7'], False),
+        (["a", "b"], '["a", "b"]', [], False),
+        (["a", "b"], '["a", "b"]', ['["a", "b"]'], True),
+        (["b", "a"], '["b", "a"]', ['["a", "b"]'], False),
+        (True, "true", [], False),
+        (True, "true", ['true'], True),
+        ({"key": "value"}, '{"key": "value"}', [], False),
+        ({"key": "value"}, '{"key": "value"}', ['{"key": "value"}'], True),
+        ({"key": "value"}, '{"key": "value"}', ['{"key": "not-value"}','{"key": "value"}'], True),
+        ("repeat submission", "repeat submission", ["repeat submission"], True),
+        (None, "", [""], True),
+    ],
+)
+@pytest.mark.parametrize(
+    ["token_limit", "token_usage", "expect_limit_submit", "expect_more_than_10", "expect_less_than_10"],
+    [
+        # Ample tokens remaining (>90%)
+        (1000, 100, False, True, False),
+        # Low tokens remaining (<90%, >5%)
+        (1000, 920, False, False, True),
+        # Very low tokens remaining (<5%)
+        (1000, 970, True, False, False),
+    ],
+)
+async def test_double_return_fn(
+    submission: Any,
+    expected_submit_arg: str,
+    existing_submissions: list[str],
+    expect_existing_submit: bool,
+    token_limit: int,
+    token_usage: int,
+    expect_limit_submit: bool,
+    expect_more_than_10: bool,
+    expect_less_than_10: bool,
+    mocker: MockerFixture,
+):
+    submit_mock = mocker.patch("pyhooks.Hooks.submit", autospec=True)
+    state = base.State(
+        task_string="test task",
+        token_limit=token_limit,
+        token_usage=token_usage,
+        submissions=existing_submissions.copy(),
+    )
+
+    result = await tools.double_return_fn(state, submission)
+
+    if expect_limit_submit or expect_existing_submit:
+        submit_mock.assert_awaited_once()
+        assert submit_mock.call_args.args[1] == expected_submit_arg
+        assert result is None  # should be no encouragement to check if actually submitted
+    else:
+        submit_mock.assert_not_awaited()
+        assert result is not None  # there should always be an encouragement if not submitted
+        assert expected_submit_arg in state.submissions  # the submission should be added to the state
+        assert ("more than 10%" in result) == expect_more_than_10
+        assert ("less than 10%" in result) == expect_less_than_10
