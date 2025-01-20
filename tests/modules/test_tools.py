@@ -286,8 +286,12 @@ async def test_return_fn(submission: Any, expected_args: str, mocker: MockerFixt
     [
         ("test submission", "test submission", [], False),
         ("test submission", "test submission", ["test submission"], True),
+        ("test submission", "test submission", ["a different string"], False),
+        ("test submission", "test submission", ["a different string", "another", "test submission"], True),
         (None, "", [], False),
+        (None, "", [""], True),
         ("", "", [], False),
+        ("", "", [""], True),
         (123, "123", [], False),
         (123, "123", ['123'], True),
         (123, "123", ['456', '123', '789'], True),
@@ -340,12 +344,10 @@ async def test_double_return_fn(
     if expect_limit_submit or expect_existing_submit:
         submit_mock.assert_awaited_once()
         assert submit_mock.call_args.args[1] == expected_submit_arg
+        assert result is None  # should be no encouragement to check if actually submitted
     else:
         submit_mock.assert_not_awaited()
-        if result:
-            if expect_more_than_10:
-                assert "more than 10%" in result
-                assert "less than 10%" not in result
-            if expect_less_than_10:
-                assert "less than 10%" in result
-                assert "more than 10%" not in result
+        assert result is not None  # there should always be an encouragement if not submitted
+        assert expected_submit_arg in state.submissions  # the submission should be added to the state
+        assert ("more than 10%" in result) == expect_more_than_10
+        assert ("less than 10%" in result) == expect_less_than_10
