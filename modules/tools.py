@@ -255,15 +255,16 @@ I need to view this image, but don't have image input enabled. Here's the image:
     )
 
 
-async def describe_image_fn(_state: State, file_path: str, query: str | None = None):
+async def describe_image_fn(_state: State, file_path: str | Path, query: str | None = None):
     try:
         print(f"Analyzing {file_path} with query {query}")
-        extension = Path(file_path).suffix
+        file_path = Path(file_path)
+        extension = file_path.suffix
         if extension not in image_file_extensions:
-            if re.search(r",|:|\?", file_path):
+            if not file_path.is_file() and re.search(r",|:|\?", str(file_path)):
                 return textwrap.dedent(
                     f"""\
-                    Error: file extension {extension} not in allowed extensions {image_file_extensions}.
+                    Error: your file_path to the image appears to contain a question.
                     Specify your question in the 'query' parameter, not the 'file_path' parameter.
                     """
                 ).strip()
