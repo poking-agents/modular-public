@@ -17,8 +17,9 @@ async def get_result_message_simple(agent: Agent) -> Optional[Message]:
     output = ""
     if tool_name not in agent.toolkit_dict:
         return Message(
-            role="user",
+            role="function",
             content=reject_command_prompt,
+            name=tool_name,
             function_call=None,
         )
 
@@ -35,8 +36,9 @@ async def get_result_message_simple(agent: Agent) -> Optional[Message]:
     if not tool_params:
         if agent_args:
             return Message(
-                role="user",
+                role="function",
                 content=reject_arguments_prompt,
+                name=tool_name,
                 function_call=None,
             )
         return Message(
@@ -52,15 +54,17 @@ async def get_result_message_simple(agent: Agent) -> Optional[Message]:
             output = await tool_fn(agent.state, **agent_args)
         except TypeError:
             return Message(
-                role="user",
+                role="function",
                 content=reject_arguments_prompt,
+                name=tool_name,
                 function_call=None,
-            )
+        )
     elif len(required_args) != 1:
         # tell agent the command failed
         return Message(
-            role="user",
+            role="function",
             content=reject_arguments_prompt,
+            name=tool_name,
             function_call=None,
         )
     else:

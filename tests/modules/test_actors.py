@@ -53,7 +53,8 @@ def fixture_tool_object(request: pytest.FixtureRequest):
             TOOL_OBJECT_NO_ARGS,
             {"name": "score", "arguments": "Extra stuff"},
             RESPONSE_REJECT := base.Message(
-                role="user",
+                role="function",
+                name="score",
                 content=templates.reject_arguments_prompt,
                 function_call=None,
             ),
