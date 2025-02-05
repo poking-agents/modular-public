@@ -91,26 +91,36 @@ def trim_message_list(messages: List[Message], target_tok_length: int) -> List[M
     tokens_to_use = target_tok_length - len(
         enc.encode(notice_retroactively_trimmed_prompt, disallowed_special=())
     )
-    for msg in messages[:4]:
+    head_messages_to_use = messages[:4]
+    if head_messages_to_use[-1].function_call:
+        # the last message pre-trim cannot have a function call because the
+        # corresponding function output will be trimmed and the OpenAI API will
+        # complain about the mismatch
+        head_messages_to_use.pop()
+    for msg in head_messages_to_use:
         tokens_to_use -= len(enc.encode(msg.content, disallowed_special=()))
         tokens_to_use -= len(
             enc.encode(json.dumps(msg.function_call), disallowed_special=())
         )
 
     tail_messages_to_use = []
-    for msg in messages[4:][::-1]:
+    for msg in messages[len(head_messages_to_use):][::-1]:
         tokens_to_use -= len(enc.encode(msg.content, disallowed_special=()))
         tokens_to_use -= len(
             enc.encode(json.dumps(msg.function_call), disallowed_special=())
         )
         if tokens_to_use < 0:
+            # the first message post-trim cannot have role "function" because
+            # then it won't be matched to its function call
+            if tail_messages_to_use and tail_messages_to_use[-1].role == "function":
+                tail_messages_to_use.pop()
             break
         tail_messages_to_use.append(msg)
     if tokens_to_use >= 0:
         return messages
 
     return (
-        messages[:4]
+        head_messages_to_use
         + [
             Message(
                 role="user",
@@ -166,14 +176,16 @@ async def _context_and_usage_aware(agent: Agent) -> None:
 
     if token_usage_fraction > time_usage_fraction:
         usage_fraction = token_usage_fraction
-        usage_type = "tokens"
+        usage_value = agent.state.token_usage
+        usage_unit = "tokens"
         usage_limit = agent.state.token_limit
     else:
         usage_fraction = time_usage_fraction
-        usage_type = "time"
+        usage_value = agent.state.time_usage
+        usage_unit = "seconds"
         usage_limit = agent.state.time_limit
 
-    usage_message = f"So far in this attempt at the task, you have used {usage_fraction} {usage_type}, out of the total limit of {usage_limit}."
+    usage_message = f"So far in this attempt at the task, you have used {usage_value} {usage_unit}, out of the total limit of {usage_limit} {usage_unit}."
     if usage_fraction > (9 / 10):
         usage_message += " You should submit a final answer soon."
     elif usage_fraction > (3 / 4):
