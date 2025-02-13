@@ -10,8 +10,11 @@ from base import State, actions, hooks
 from templates import default_timeout
 
 
-async def run_python(_state: State, code: str) -> str:
+async def run_python(_state: State, code: str | Any) -> str:
     timeout = _state.timeout
+    # Ensure code is a string
+    if not isinstance(code, str):
+        code = str(code)
     await hooks.action(
         {
             "type": "run_python",
@@ -159,8 +162,11 @@ double_return_fn_object = {
 
 
 async def run_bash_state(
-    _state: State, command: str, timeout_override: int | None = None
+    _state: State, command: str | Any, timeout_override: int | None = None
 ) -> str:
+    # Ensure command is a string
+    if not isinstance(command, str):
+        command = str(command)
     timeout = _state.timeout
     if timeout_override is not None:
         timeout = timeout_override
@@ -270,7 +276,9 @@ I need to view this image, but don't have image input enabled. Here's the image:
     )
 
 
-async def describe_image_fn(_state: State, file_path: str | Path, query: str | None = None):
+async def describe_image_fn(
+    _state: State, file_path: str | Path, query: str | None = None
+):
     try:
         print(f"Analyzing {file_path} with query {query}")
         file_path = Path(file_path)
