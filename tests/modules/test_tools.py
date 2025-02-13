@@ -192,7 +192,10 @@ async def test_score_feedback(
     ):
         message = messages[idx_message]
         assert message.role == expected_role
-        assert message.content == expected_content
+        if isinstance(message.content, list):
+            assert message.content[0]["text"] == expected_content
+        else:
+            assert message.content == expected_content
 
     if expected_output_file is not None:
         assert fs.exists(expected_output_file)
