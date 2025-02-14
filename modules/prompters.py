@@ -14,7 +14,11 @@ def _format_score_message(message: Message) -> Message:
     # Some actors add extra lines to the score message, but the score output
     # is always the first line.
     score_output, *extra = message.content.splitlines()
-    result = json.loads(score_output)
+    try:
+        result = json.loads(score_output)
+    except json.JSONDecodeError:
+        # Likely the score command failed and this is just an error message.
+        return message
 
     score_content = []
     score = result.get("score", None)
