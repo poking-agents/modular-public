@@ -18,7 +18,7 @@ tool_descriptions = {
 
 
 def get_tool_descriptions(tools: list[str]) -> list[str]:
-    return [f"<{tool}>[{tool_descriptions[tool]}]</{tool}>" for tool in tools]
+    return [f"```{tool}\n[{tool_descriptions[tool]}]\n```" for tool in tools]
 
 
 claude_basic_system_prompt = f"""You are to act as an autonomous AI agent, capable of controlling a scaffolding program that runs on a linux VM. You have full control over your VM, including reading and writing all files. You can do this by calling the following functions provided by the scaffolding program (without including the square brackets):

@@ -1,3 +1,4 @@
+import re
 import copy
 from functools import partial
 from itertools import product
@@ -25,9 +26,7 @@ async def _claude_legacy_factory(
     messages = agent.state.next_step["args"]["messages"]
 
     middleman_settings_copy = copy.deepcopy(middleman_settings)
-    middleman_settings_copy.stop = [f"</{tool}" for tool in agent.toolkit_dict][
-        :ANTHROPIC_STOP_SEQUENCE_LIMIT
-    ]
+    middleman_settings_copy.stop = [f"```\n"]
     messages = agent.state.next_step["args"]["messages"]
     wrapped_messages = [
         {
@@ -47,7 +46,7 @@ async def _claude_legacy_factory(
         if msg.function_call is not None:
             tool_name = msg.function_call["name"]
             tool_args = msg.function_call["arguments"]
-            content += f"<{tool_name}>{tool_args}</{tool_name}>"
+            content += f"```{tool_name}\n{tool_args}\n```"
         elif msg.role == "function":
             role = "user"
             content = f"<{msg.name}-output>{msg.content}</{msg.name}-output>"
@@ -61,7 +60,7 @@ async def _claude_legacy_factory(
         wrapped_messages.append(
             {
                 "role": "user",
-                "content": "No function call was included in the last message. Please include a function call in the next message using the <[tool_name]> [args] </[tool_name]> syntax.",
+                "content": "No function call was included in the last message. Please include a function call in the next message using the ```[tool_name]\n[args]\n``` syntax.",
             }
         )
     generations = await hooks.generate(
@@ -73,20 +72,36 @@ async def _claude_legacy_factory(
 
     generation = generations.outputs[0].completion
     messages = []
+
     for output in generations.outputs:
         generation = output.completion
-        last_tool_loc, last_tool = max(
-            [(generation.find(f"<{tool}>"), tool) for tool in agent.toolkit_dict]
-        )
+
+        # Find the first occurrence of any tool in a code block
+        first_tool_loc = float('inf')
+        first_tool = None
+        first_match = None
+
+        for tool in agent.toolkit_dict:
+            pattern = rf'```{re.escape(tool)}\n(.*?)\n```'
+            match = re.search(pattern, generation, re.DOTALL)
+            if match and match.start() < first_tool_loc:
+                first_tool_loc = match.start()
+                first_tool = tool
+                first_match = match
+
         content = generation
         function_call = None
-        if last_tool_loc != -1:
-            content, raw_function_call = generation.rsplit(f"<{last_tool}>", maxsplit=1)
+
+        if first_match:
+            tool_arguments = first_match.group(1).strip()
+            content = generation[:first_match.start()].rstrip()
+
             function_call = {
                 "type": "function",
-                "name": last_tool,
-                "arguments": raw_function_call.removesuffix(f"</{last_tool}>"),
+                "name": first_tool,
+                "arguments": tool_arguments,
             }
+
         message = Message(
             role="assistant",
             content=content,
