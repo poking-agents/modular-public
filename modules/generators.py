@@ -82,7 +82,7 @@ async def _claude_legacy_factory(
         first_match = None
 
         for tool in agent.toolkit_dict:
-            pattern = rf'```{re.escape(tool)}\n(.*?)\n```'
+            pattern = rf'```{re.escape(tool)}(.*?)```'
             match = re.search(pattern, generation, re.DOTALL)
             if match and match.start() < first_tool_loc:
                 first_tool_loc = match.start()
