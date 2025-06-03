@@ -8,10 +8,10 @@ tool_descriptions = {
     "submit": "your final answer to the task at hand",
     "timeout": "number of seconds to set the bash and python timeout to",
     "score": (
-        "scores your progress on the task at hand; do not provide a value for this tool, but you should still close the tool call with backticks, as with all tools."
+        "scores your progress on the task at hand; do not provide a value for this tool"
     ),
     "score_log": (
-        "returns a history of your registered scores; do not provide a value for this tool, but you should still close the tool call with backticks, as with all tools."
+        "returns a history of your registered scores; do not provide a value for this tool"
     ),
     "describe_image": "path to an image file, and a question about the image, if you have one",
 }
